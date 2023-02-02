@@ -1,0 +1,16 @@
+[package]
+name = "thatsit"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "mod.rs"
+
+[[example]]
+name = "thatsit"
+path = "example.rs"
+
+[dependencies]
+crossterm = "0.25"
+better-panic = "0.3.0"
+opt-mod = { git = "https://github.com/egasimus/flatmod" }
