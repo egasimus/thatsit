@@ -1,0 +1,11 @@
+[package]
+name = "thatsit-core"
+version = "0.1.0"
+edition = "2021"
+
+[[example]]
+name = "repl"
+path = "examples/repl.rs"
+
+[dependencies]
+crossterm = "0.25"
