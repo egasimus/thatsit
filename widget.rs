@@ -24,6 +24,45 @@ pub trait Widget {
     fn collect <'a> (self, collect: &mut Collect<'a>) where Self: 'a + Sized {
         collect.0.push(Layout::Box(Box::new(self)));
     }
+    /// Set up the terminal and run the main loop. As the main thread goes into a render loop,
+    /// a separate input thread is launched, which sends input events to the main thread.
+    /// After the exit flag is set, reset the terminal and exit.
+    ///
+    /// # Arguments
+    ///
+    /// * `exited` - Atomic exit flag. Setting this to `true` tells both threads to end.
+    /// * `term` - A writable output, such as `std::io::stdout()`.
+    fn run (self, exited: &'static AtomicBool, term: &mut dyn Write) -> Result<()>
+        where Self: Sized
+    {
+        let app: std::cell::RefCell<Self> = RefCell::new(self);
+        // Set up event channel and input thread
+        let (tx, rx) = channel::<Event>();
+        spawn_input_thread(tx, exited);
+        // Setup terminal and panic hook
+        setup(term, true)?;
+        // Render app and listen for updates
+        loop {
+            // Clear screen
+            clear(term).unwrap();
+            // Break loop if exited
+            if exited.fetch_and(true, Ordering::Relaxed) == true {
+                break
+            }
+            // Render
+            let (w, h) = size()?;
+            if let Err(error) = app.borrow().render(term, Area(0, 0, w, h)) {
+                write_error(term, format!("{error}").as_str()).unwrap();
+            }
+            // Flush output buffer
+            term.flush().unwrap();
+            // Wait for input and update
+            app.borrow_mut().handle(&rx.recv().unwrap()).unwrap();
+        }
+        // Clean up
+        teardown(term)?;
+        Ok(())
+    }
 }
 
 impl Debug for dyn Widget {
