@@ -77,7 +77,7 @@ where
 
 impl<'a> Crossterm<'a> {
 
-    fn new <T: Write + 'a> (&self, output: T) -> Self {
+    pub fn new <T: Write + 'a> (output: T) -> Self {
         Self {
             area:     Area::default(),
             terminal: Box::new(output),

@@ -10,7 +10,7 @@ pub type ReplContext = (Stdin, Stdout);
 
 impl<X> Engine<ReplContext> for X
 where
-    X: Input<String, String> + Output<String, String>
+    X: Input<String, String> + Output<String, ()>
 {
     fn done (&self) -> bool {
         true
