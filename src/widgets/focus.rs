@@ -1,4 +1,4 @@
-use crate::widgets::{layout::Layout, collect::{Collect, Collectible}, stacked::Stacked};
+use crate::widgets::{collect::*, stacked::Stacked};
 use std::{slice::Iter, slice::IterMut};
 
 ///
@@ -138,28 +138,31 @@ impl<T> Focus<T> for FocusList<T> {
 
 /// Like `Stacked`, but keeps track of focus
 #[derive(Debug)]
-pub struct FocusStack<'a, T>(pub Stacked<'a, T>, pub FocusState<usize>);
+pub struct FocusStack<'a, T: Collectible>(
+    pub Stacked<'a, T>,
+    pub FocusState<usize>
+);
 
 impl<'a, T: Collectible> FocusStack<'a, T> {
     pub fn new (stack: Stacked<'a, T>) -> Self {
         Self(stack, FocusState::default())
     }
-    pub fn x (items: impl Fn(&mut Collect<'a, T>)) -> Self {
+    pub fn x (items: impl Fn(&mut Collector<'a, T>)) -> Self {
         Self(Stacked::x(items), FocusState::default())
     }
-    pub fn y (items: impl Fn(&mut Collect<'a, T>)) -> Self {
+    pub fn y (items: impl Fn(&mut Collector<'a, T>)) -> Self {
         Self(Stacked::y(items), FocusState::default())
     }
-    pub fn z (items: impl Fn(&mut Collect<'a, T>)) -> Self {
+    pub fn z (items: impl Fn(&mut Collector<'a, T>)) -> Self {
         Self(Stacked::z(items), FocusState::default())
     }
 }
 
-impl<'a, T> Focus<Layout<'a, T>> for FocusStack<'a, T> {
-    fn items (&self) -> &Vec<Layout<'a, T>> {
+impl<'a, T: Collectible> Focus<Collected<'a, T>> for FocusStack<'a, T> {
+    fn items (&self) -> &Vec<Collected<'a, T>> {
         &self.0.1
     }
-    fn items_mut (&mut self) -> &mut Vec<Layout<'a, T>> {
+    fn items_mut (&mut self) -> &mut Vec<Collected<'a, T>> {
         &mut self.0.1
     }
     fn state (&self) -> &FocusState<usize> {
@@ -194,4 +197,3 @@ mod test {
         });
     }
 }
-

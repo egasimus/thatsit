@@ -1,4 +1,4 @@
-use crate::{*, widgets::{*, offset::Offset, layout::Layout, collect::{Collect, Collectible}}};
+use crate::{*, widgets::{*, offset::Offset, collect::{Collector, Collectible, Collected}}};
 
 use crate::engines::tui::Crossterm;
 
@@ -6,32 +6,33 @@ use std::io::Write;
 
 /// Order multiple `Widget`s along X (columns), Y (rows), or Z (layers).
 #[derive(Debug)]
-pub struct Stacked<'a, T>(
+pub struct Stacked<'a, T: Collectible>(
     /// The axis along which the components are stacked
     pub Axis,
     /// The stacked components
-    pub Vec<Layout<'a, T>>
+    pub Vec<Collected<'a, T>>
 );
 
 impl<'a, T: Collectible> Stacked<'a, T> {
+
     /// Stacked left to right
-    pub fn x (items: impl Fn(&mut Collect<'a, T>)) -> Self {
-        Self(Axis::X, Collect::collect(items).0)
+    pub fn x (items: impl Fn(&mut Collector<'a, T>)) -> Self {
+        Self(Axis::X, Collector::collect(items).0)
     }
+
     /// Stacked top to bottom
-    pub fn y (items: impl Fn(&mut Collect<'a, T>)) -> Self {
-        Self(Axis::Y, Collect::collect(items).0)
+    pub fn y (items: impl Fn(&mut Collector<'a, T>)) -> Self {
+        Self(Axis::Y, Collector::collect(items).0)
     }
+
     /// Stacked back to front
-    pub fn z (items: impl Fn(&mut Collect<'a, T>)) -> Self {
-        Self(Axis::Z, Collect::collect(items).0)
+    pub fn z (items: impl Fn(&mut Collector<'a, T>)) -> Self {
+        Self(Axis::Z, Collector::collect(items).0)
     }
+
 }
 
-impl<'a, T> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, T>
-where
-    T: Output<Crossterm<'a>, (u16, u16)>
-{
+impl<'a, T: Collectible + Output<Crossterm<'a>, (u16, u16)>> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, T> {
     fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
         let mut x = 0;
         let mut y = 0;

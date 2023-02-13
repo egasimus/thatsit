@@ -13,7 +13,7 @@ impl Input<CrosstermInputEvent, bool> for ExampleComponent {
 }
 
 impl<'a> Output<Crossterm<'a>, (u16, u16)> for ExampleComponent {
-    fn render (&self, context: &mut String) -> Result<Option<(u16, u16)>> {
+    fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
         Ok(Some((10, 10)))
     }
 }
@@ -24,7 +24,10 @@ fn main () -> Result<()> {
         done: false,
         label: "Enter some text to be stored".to_string(),
         state: "".to_string()
-    }.run((std::io::stdin(), std::io::stdout()))?;
+    }.run(
+        Crossterm::new(std::io::stdout())
+    )?;
 
     Ok(())
+
 }
