@@ -16,9 +16,9 @@ pub struct Offset<Unit, T>(
     pub T
 );
 
-impl<'a, W> Output<Crossterm<'a>, (u16, u16)> for Offset<u16, W>
+impl<'a, T> Output<Crossterm<'a>, (u16, u16)> for Offset<u16, T>
 where
-    W: Output<Crossterm<'a>, (u16, u16)>
+    T: Output<Crossterm<'a>, (u16, u16)>
 {
     fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
         self.2.render(context.area(|area|Area(

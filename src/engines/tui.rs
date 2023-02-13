@@ -39,6 +39,8 @@ use crossterm::{
     },
 };
 
+pub use crossterm::event::Event as CrosstermInputEvent;
+
 /// Exit flag. Setting this to true terminates the main loop.
 static EXITED: AtomicBool = AtomicBool::new(false);
 
@@ -48,7 +50,7 @@ pub type Unit = u16;
 /// An instance of an app hosted by crossterm.
 pub struct Crossterm<'a> {
     terminal: Box<dyn Write + 'a>,
-    area:     Area<Unit>,
+    pub area: Area<Unit>,
 }
 
 impl<'a, X> Engine<Crossterm<'a>> for X

@@ -1,16 +1,10 @@
-use thatsit_core::{*, repl::*};
+use thatsit_core::{*, engines::repl::*};
 
 #[derive(Debug)]
 pub struct ExampleComponent {
     done:  bool,
     label: String,
     state: String
-}
-
-impl Done for ExampleComponent {
-    fn done (&self) -> bool {
-        return self.done
-    }
 }
 
 impl Input<String> for ExampleComponent {

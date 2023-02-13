@@ -1,27 +1,20 @@
-use thatsit_core::{*, tui::*};
+use thatsit_core::{*, engines::tui::*};
 
 #[derive(Debug)]
 pub struct ExampleComponent {
-    done:  bool,
     label: String,
     state: String
 }
 
-impl Done for ExampleComponent {
-    fn done (&self) -> bool {
-        return self.done
+impl Input<CrosstermInputEvent, bool> for ExampleComponent {
+    fn handle (&mut self, input: T) -> Result<Option<Self>> {
+        Ok(Some(self))
     }
 }
 
-impl Input<Crossterm> for ExampleComponent {
-    fn handle (mut self, input: String) -> Result<Self> {
-        Ok(self)
-    }
-}
-
-impl Output<Crossterm> for ExampleComponent {
-    fn render (self, context: &mut String) -> Result<Self> {
-        Ok(self)
+impl<'a> Output<Crossterm<'a>, (u16, u16)> for ExampleComponent {
+    fn render (&self, context: &mut String) -> Result<Option<(u16, u16)>> {
+        Ok(Some((10, 10)))
     }
 }
 

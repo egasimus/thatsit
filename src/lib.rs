@@ -23,33 +23,39 @@ pub trait Output<T, U> {
 mod test {
     use crate::*;
     #[test] fn should_work () -> Result<()> {
-        type NullEngineContext = ();
-        struct NullEngine;
-        impl<'a, X> Engine<NullEngineContext> for X
-        where
-            X: Input<NullInputContext> + Output<NullOutputContext>
-        {
-            fn done (&self) -> bool {
-                true
-            }
-            fn run (self, context: NullEngineContext) -> Result<Self> {
-                Ok(self)
-            }
-        }
+
         struct NullWidget;
-        type NullInputContext = ();
-        impl Input<NullInputContext> for NullWidget {
-            fn handle (self, context: NullInputContext) -> Result<Self> {
-                Ok(self)
-            }
-        }
-        type NullOutputContext = ();
-        type NullOutputResult = ();
-        impl Output<NullOutputContext, NullOutputResult> for NullWidget {
-            fn render (self, context: &mut NullOutputContext) -> Result<Option<NullOutputResult>> {
+
+        impl Input<(), ()> for NullWidget {
+            fn handle (&mut self, context: ()) -> Result<Option<()>> {
                 Ok(Some(()))
             }
         }
-        NullWidget.run(())
+
+        NullWidget.handle(())?;
+
+        impl Output<(), ()> for NullWidget {
+            fn render (&self, context: &mut ()) -> Result<Option<()>> {
+                Ok(Some(()))
+            }
+        }
+
+        NullWidget.render(&mut ())?;
+
+        struct NullEngine;
+
+        impl<'a, X: Input<(), ()> + Output<(), ()>> Engine<&mut ()> for X {
+            fn done (&self) -> bool {
+                true
+            }
+            fn run (self, context: &mut ()) -> Result<Self> {
+                Ok(self)
+            }
+        }
+
+        NullWidget.run(&mut ())?;
+
+        Ok(())
+
     }
 }

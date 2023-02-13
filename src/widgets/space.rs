@@ -25,9 +25,9 @@ pub struct Area<U: Copy>(
     pub U
 );
 
-impl<Unit: Copy + Ord + std::fmt::Display + std::fmt::Debug> Area<Unit> {
+impl<U: Copy + Ord + std::fmt::Display + std::fmt::Debug> Area<U> {
     /// Return an error if this area is larger than the minimum needed size
-    pub fn expect_min (&self, (min_w, min_h): (Unit, Unit)) -> std::io::Result<&Self> {
+    pub fn expect_min (&self, (min_w, min_h): (U, U)) -> std::io::Result<&Self> {
         if self.w() < min_w || self.h() < min_h {
             Err(std::io::Error::new(
                 std::io::ErrorKind::Other, format!("no space ({:?} < {}x{})", self, min_w, min_h)

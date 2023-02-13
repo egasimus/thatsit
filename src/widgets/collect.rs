@@ -10,7 +10,7 @@ pub trait Collectible {
 }
 
 /// These collections are used for building render-lists in place.
-impl<T, U> Collectible for dyn Output<T, U> {}
+impl<'a, T, U> Collectible for dyn Output<T, U> + 'a {}
 
 /// Callable struct that collects Layout-wrapped Widgets into itself.
 pub struct Collect<'a, T: Collectible>(pub Vec<Layout<'a, T>>);
