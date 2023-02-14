@@ -26,15 +26,7 @@ use smithay::{
             display::EGLDisplay
         },
         renderer::{ImportEgl, Bind},
-        winit::{
-            Error as WinitError,
-            WindowSize,
-            WinitEvent,
-            WinitVirtualDevice,
-            WinitKeyboardInputEvent,
-            WinitMouseMovedEvent, WinitMouseWheelEvent, WinitMouseInputEvent,
-            WinitTouchStartedEvent, WinitTouchMovedEvent, WinitTouchEndedEvent, WinitTouchCancelledEvent
-        }
+        winit::{Error as WinitError, WindowSize, WinitVirtualDevice,}
     },
     backend::{
         input::{
@@ -43,19 +35,17 @@ use smithay::{
     },
     reexports::{
         winit::{
-            dpi::LogicalSize,
-            event::{Event, WindowEvent, ElementState, KeyboardInput, Touch, TouchPhase},
+            dpi::{LogicalSize, LogicalPosition},
+            event::{MouseButton, MouseScrollDelta, Event, WindowEvent, ElementState, KeyboardInput, Touch, TouchPhase},
             event_loop::{ControlFlow, EventLoop as WinitEventLoop},
             platform::unix::WindowExtUnix,
             window::{WindowId, WindowBuilder, Window as WinitWindow},
         },
-    }
-};
-
-use smithay::{
-    wayland::socket::ListeningSocketSource,
-    reexports::wayland_server::backend::{ClientId, ClientData, DisconnectReason},
-    reexports::calloop::{PostAction, Interest, Mode, generic::Generic}
+    },
+    utils::{Size, Physical}
+    //wayland::socket::ListeningSocketSource,
+    //reexports::wayland_server::backend::{ClientId, ClientData, DisconnectReason},
+    //reexports::calloop::{PostAction, Interest, Mode, generic::Generic}
 };
 
 use smithay::reexports::winit::platform::run_return::EventLoopExtRunReturn;
@@ -64,7 +54,7 @@ pub type Unit = f32;
 
 impl<'a, X> Engine<Winit> for X
 where
-    X: Input<Winit, &'a [Rect<2, f32>]> + Output<Winit, bool>
+    X: Input<WinitEvent, &'a [Rect<2, f32>]> + Output<Winit, bool>
 {
     fn done (&self) -> bool {
         false
@@ -309,7 +299,9 @@ impl Winit {
         match event {
             WindowEvent::CloseRequested | WindowEvent::Destroyed => {
                 window.closing.set(true);
-                vec![WinitEvent::Input(InputEvent::DeviceRemoved { device: WinitVirtualDevice, })]
+                vec![
+                    WinitEvent::DeviceRemoved { device: WinitVirtualDevice, }
+                ]
             }
             WindowEvent::Resized(psize) => {
                 let scale_factor = window.window.scale_factor();
@@ -318,10 +310,14 @@ impl Winit {
                 wsize.physical_size = (pw as i32, ph as i32).into();
                 wsize.scale_factor  = scale_factor;
                 window.resized.set(Some(wsize.physical_size));
-                vec![WinitEvent::Resized { size: wsize.physical_size, scale_factor, }]
+                vec![
+                    WinitEvent::Resized { size: wsize.physical_size, scale_factor, }
+                ]
             }
             WindowEvent::Focused(focus) => {
-                vec![WinitEvent::Focus(focus)]
+                vec![
+                    WinitEvent::Focus(focus)
+                ]
             }
             WindowEvent::ScaleFactorChanged { scale_factor, new_inner_size, } => {
                 let mut wsize = window.scale.borrow_mut();
@@ -330,7 +326,9 @@ impl Winit {
                 window.resized.set(Some((pw as i32, ph as i32).into()));
                 let size = (pw as i32, ph as i32).into();
                 let scale_factor = wsize.scale_factor;
-                vec![WinitEvent::Resized { size, scale_factor }]
+                vec![
+                    WinitEvent::Resized { size, scale_factor }
+                ]
             }
             _ => vec![]
         }
@@ -343,15 +341,13 @@ impl Winit {
             WindowEvent::KeyboardInput { input, .. } => {
                 let KeyboardInput { scancode, state, .. } = input;
                 window.rollover.set(match state {
-                    ElementState::Pressed
-                        => window.rollover.get() + 1,
-                    ElementState::Released
-                        => window.rollover.get().checked_sub(1).unwrap_or(0)
+                    ElementState::Pressed  => window.rollover.get() + 1,
+                    ElementState::Released => window.rollover.get().checked_sub(1).unwrap_or(0)
                 });
-                let event = WinitKeyboardInputEvent {
-                    time, key: scancode, count: window.rollover.get(), state,
-                };
-                vec![WinitEvent::Input(InputEvent::Keyboard { event })]
+                let count = window.rollover.get();
+                vec![
+                    WinitEvent::Keyboard { time, key: scancode, count, state }
+                ]
             }
             _ => vec![]
         }
@@ -364,16 +360,19 @@ impl Winit {
             WindowEvent::CursorMoved { position, .. } => {
                 let size = window.scale.clone();
                 let logical_position = position.to_logical(window.scale.borrow().scale_factor);
-                let event = WinitMouseMovedEvent { time, size, logical_position };
-                vec![WinitEvent::Input(InputEvent::PointerMotionAbsolute { event })]
+                vec![
+                    WinitEvent::PointerPosition { time, size, logical_position }
+                ]
             }
             WindowEvent::MouseWheel { delta, .. } => {
-                let event = WinitMouseWheelEvent { time, delta };
-                vec![WinitEvent::Input(InputEvent::PointerAxis { event })]
+                vec![
+                    WinitEvent::PointerAxis { time, delta }
+                ]
             }
             WindowEvent::MouseInput { state, button, .. } => {
-                let event = WinitMouseInputEvent { time, button, state, is_x11: window.is_x11 };
-                vec![WinitEvent::Input(InputEvent::PointerButton { event }) ]
+                vec![
+                    WinitEvent::PointerButton { time, button, state, is_x11: window.is_x11 }
+                ]
             },
             _ => vec![]
         }
@@ -382,34 +381,35 @@ impl Winit {
     fn on_touch <'b> (time: u64, window: &WinitHostWindow, event: WindowEvent<'b>)
         -> Vec<WinitEvent>
     {
-        let mut events = vec![];
-        let size   = window.scale.clone();
-        let scale  = window.scale.borrow().scale_factor;
+        let size  = window.scale.clone();
+        let scale = window.scale.borrow().scale_factor;
         match event {
             WindowEvent::Touch(Touch { phase: TouchPhase::Started, location, id, .. }) => {
                 let location = location.to_logical(scale);
-                let event    = WinitTouchStartedEvent { size, time, location, id };
-                events.push(WinitEvent::Input(InputEvent::TouchDown { event }));
-            }
+                vec![
+                    WinitEvent::TouchDown { size, time, location, id }
+                ]
+            },
             WindowEvent::Touch(Touch { phase: TouchPhase::Moved, location, id, .. }) => {
                 let location = location.to_logical(scale);
-                let event    = WinitTouchMovedEvent { size, time, location, id };
-                events.push(WinitEvent::Input(InputEvent::TouchMotion { event }));
-            }
+                vec![
+                    WinitEvent::TouchMotion { size, time, location, id }
+                ]
+            },
             WindowEvent::Touch(Touch { phase: TouchPhase::Ended, location, id, .. }) => {
                 let location = location.to_logical(scale);
-                let event    = WinitTouchMovedEvent { size, time, location, id };
-                events.push(WinitEvent::Input(InputEvent::TouchMotion { event }));
-                let event    = WinitTouchEndedEvent { time, id };
-                events.push(WinitEvent::Input(InputEvent::TouchUp { event }));
-            }
+                vec![
+                    WinitEvent::TouchMotion { size, time, location, id },
+                    WinitEvent::TouchUp { time, id }
+                ]
+            },
             WindowEvent::Touch(Touch { phase: TouchPhase::Cancelled, id, .. }) => {
-                let event    = WinitTouchCancelledEvent { time, id };
-                events.push(WinitEvent::Input(InputEvent::TouchCancel { event }));
-            }
-            _ => {}
-        };
-        events
+                vec![
+                    WinitEvent::TouchCancel { time, id }
+                ]
+            },
+            _ => vec![]
+        }
     }
 
     fn input_added (&mut self, name: &str) -> Result<()> {
@@ -433,6 +433,20 @@ impl Winit {
         Ok(())
     }
 
+}
+
+pub enum WinitEvent {
+    Focus(bool),
+    TouchUp { time: u64, id: u64 },
+    TouchMotion { time: u64, id: u64, size: Rc<RefCell<WindowSize>>, location: LogicalPosition<f64> },
+    TouchDown { time: u64, id: u64, size: Rc<RefCell<WindowSize>>, location: LogicalPosition<f64> },
+    TouchCancel { time: u64, id: u64 },
+    Resized { size: Size<i32, Physical>, scale_factor: f64 },
+    PointerPosition { time: u64, size: Rc<RefCell<WindowSize>>, logical_position: LogicalPosition<f64> },
+    PointerButton { time: u64, button: MouseButton, state: ElementState, is_x11: bool },
+    PointerAxis { time: u64, delta: MouseScrollDelta },
+    Keyboard { time: u64, key: u32, count: u32, state: ElementState },
+    DeviceRemoved { device: WinitVirtualDevice },
 }
 
 #[derive(Debug)]
