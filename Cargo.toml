@@ -9,3 +9,46 @@ path = "examples/repl.rs"
 
 [dependencies]
 crossterm = "0.25"
+bitflags = "1.2.1"
+fps_ticker = { version = "1.0.0", optional = true }
+image = { version = "0.23.14" }
+input = { version = "0.6.0", features = ["udev"], optional = true }
+rand = "0.8"
+slog = { version = "2.1.1" }
+slog-async = "2.2"
+slog-scope = "4.4.0"
+slog-stdlog = "4.1.0"
+slog-term = "2.8"
+thiserror = "1"
+xcursor = "0.3.3"
+xkbcommon = "0.4.0"
+#deno_core = "0.165.0"
+#wayland-egl = "0.30.0"
+#wayland-server = "0.30.0"
+#wayland-protocols = { version = "0.30.0", features = ["unstable", "staging", "server"] }
+
+[dependencies.smithay]
+git = "https://github.com/Smithay/smithay.git"
+default-features = false
+features = [
+  "backend_drm",
+  "backend_egl",
+  #"backend_gbm",
+  "backend_libinput",
+  #"backend_session",
+  #"backend_udev",
+  "backend_winit",
+  #"backend_x11",
+  "desktop",
+  "slog-stdlog",
+  "use_system_lib",
+  #"wayland_frontend",
+  #"xwayland",
+  "x11rb_event_source",
+]
+
+[dependencies.x11rb]
+features = ["composite"]
+
+[build-dependencies]
+gl_generator = "0.14"

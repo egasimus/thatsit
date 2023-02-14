@@ -1,4 +1,4 @@
 pub mod repl;
 pub mod tui;
-//mod winit;
+pub mod winit;
 //mod udev;

@@ -111,6 +111,17 @@ impl<'a, T, U> Collector<'a, T, U> {
 mod test {
     use crate::*;
 
+    impl Output<(), ()> for String {
+        fn render (&self, context: &mut ()) -> Result<Option<()>> {
+            Ok(Some(()))
+        }
+    }
+    impl Output<(), ()> for &str {
+        fn render (&self, context: &mut ()) -> Result<Option<()>> {
+            Ok(Some(()))
+        }
+    }
+
     struct NullWidget;
 
     impl Input<(), ()> for NullWidget {
@@ -123,16 +134,7 @@ mod test {
             Ok(Some(()))
         }
     }
-    impl Output<(), ()> for String {
-        fn render (&self, context: &mut ()) -> Result<Option<()>> {
-            Ok(Some(()))
-        }
-    }
-    impl Output<(), ()> for &str {
-        fn render (&self, context: &mut ()) -> Result<Option<()>> {
-            Ok(Some(()))
-        }
-    }
+
     impl<'a, X: Input<(), ()> + Output<(), ()>> Engine<&mut ()> for X {
         fn done (&self) -> bool {
             true

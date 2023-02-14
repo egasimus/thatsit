@@ -2,8 +2,6 @@ use crate::{*, widgets::*};
 
 use crate::engines::tui::Crossterm;
 
-use std::io::Write;
-
 #[derive(Debug)]
 /// Set exact size
 pub enum Fixed<Unit, W> {

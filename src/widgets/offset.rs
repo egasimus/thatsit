@@ -2,8 +2,6 @@ use crate::{*, widgets::*};
 
 use crate::engines::tui::Crossterm;
 
-use std::io::Write;
-
 /// Render the contained Widget in a sub-Area starting some distance from
 /// the upper left corner of the Area that was passed.
 #[derive(Copy, Clone, Default)]

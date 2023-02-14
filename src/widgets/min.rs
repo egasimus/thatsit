@@ -2,8 +2,6 @@ use crate::{*, widgets::*};
 
 use crate::engines::tui::Crossterm;
 
-use std::io::Write;
-
 /// Set minimum size for the contained widget across one or both axes
 #[derive(Debug)]
 pub enum Min<U, T> {
