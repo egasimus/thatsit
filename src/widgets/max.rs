@@ -1,4 +1,4 @@
-use crate::{*, widgets::{*, proxy::*}};
+use crate::{*, widgets::*};
 
 use crate::engines::tui::Crossterm;
 

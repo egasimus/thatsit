@@ -1,8 +1,6 @@
 pub mod space;
 pub use space::*;
 
-pub mod proxy;
-pub mod collect;
 pub mod align;
 pub mod focus;
 

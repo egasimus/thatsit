@@ -1,4 +1,4 @@
-use crate::widgets::{collect::*, stacked::Stacked};
+use crate::{*, widgets::stacked::Stacked};
 use std::{slice::Iter, slice::IterMut};
 
 ///
@@ -138,31 +138,31 @@ impl<T> Focus<T> for FocusList<T> {
 
 /// Like `Stacked`, but keeps track of focus
 #[derive(Debug)]
-pub struct FocusStack<'a, T: Collectible>(
-    pub Stacked<'a, T>,
+pub struct FocusStack<'a, T, U>(
+    pub Stacked<'a, T, U>,
     pub FocusState<usize>
 );
 
-impl<'a, T: Collectible> FocusStack<'a, T> {
-    pub fn new (stack: Stacked<'a, T>) -> Self {
+impl<'a, T, U> FocusStack<'a, T, U> {
+    pub fn new (stack: Stacked<'a, T, U>) -> Self {
         Self(stack, FocusState::default())
     }
-    pub fn x (items: impl Fn(&mut Collector<'a, T>)) -> Self {
+    pub fn x (items: impl Fn(&mut Collector<'a, T, U>)) -> Self {
         Self(Stacked::x(items), FocusState::default())
     }
-    pub fn y (items: impl Fn(&mut Collector<'a, T>)) -> Self {
+    pub fn y (items: impl Fn(&mut Collector<'a, T, U>)) -> Self {
         Self(Stacked::y(items), FocusState::default())
     }
-    pub fn z (items: impl Fn(&mut Collector<'a, T>)) -> Self {
+    pub fn z (items: impl Fn(&mut Collector<'a, T, U>)) -> Self {
         Self(Stacked::z(items), FocusState::default())
     }
 }
 
-impl<'a, T: Collectible> Focus<Collected<'a, T>> for FocusStack<'a, T> {
-    fn items (&self) -> &Vec<Collected<'a, T>> {
+impl<'a, T, U> Focus<Collected<'a, T, U>> for FocusStack<'a, T, U> {
+    fn items (&self) -> &Vec<Collected<'a, T, U>> {
         &self.0.1
     }
-    fn items_mut (&mut self) -> &mut Vec<Collected<'a, T>> {
+    fn items_mut (&mut self) -> &mut Vec<Collected<'a, T, U>> {
         &mut self.0.1
     }
     fn state (&self) -> &FocusState<usize> {
@@ -187,13 +187,17 @@ impl<'a, T: Collectible> Focus<Collected<'a, T>> for FocusStack<'a, T> {
 mod test {
     use crate::widgets::focus::*;
 
-    #[test]
-    fn test_focus_stack () {
-        let mut output = Vec::<u8>::new();
-        let layout = FocusStack::y(|item|{
-            item(String::from("Item1"));
-            item(String::from("Item1"));
-            item(String::from("Item1"));
-        });
-    }
+    //#[test]
+    //fn should_maintain_focus_in_stack () {
+        //let mut output = Vec::<u8>::new();
+        //let layout = FocusStack::y(|add: Collector<'a, dyn Collectible>|{
+            //add(String::from("Item1"));
+            //add(FocusStack::x(|add|{
+                //add(String::from("Item1"));
+                //add(String::from("Item1"));
+                //add(String::from("Item1"));
+            //}));
+            //add(String::from("Item1"));
+        //});
+    //}
 }

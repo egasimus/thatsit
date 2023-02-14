@@ -28,4 +28,3 @@ impl<T, U, V: Output<T, U>> Output<T, U> for Aligned<V> {
         self.1.render(context)
     }
 }
-
