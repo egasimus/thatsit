@@ -4,7 +4,7 @@
 
 use crate::{*, widgets::*};
 
-use slog::{debug, warn};
+use slog::{debug, warn, crit};
 
 use std::{
     rc::Rc,
@@ -18,18 +18,16 @@ use std::{
 use smithay::{
     output::{PhysicalProperties, Subpixel, Mode},
     backend::{
-        allocator::dmabuf::Dmabuf,
         egl::{
             Error as EGLError, EGLContext, EGLSurface,
             native::XlibWindow,
             context::GlAttributes,
             display::EGLDisplay
         },
-        renderer::{Bind, ImportDma, ImportEgl},
+        renderer::{ImportDma, ImportEgl},
         winit::{
             Error as WinitError,
             WindowSize,
-            WinitInput,
             WinitEvent,
             WinitVirtualDevice,
             WinitKeyboardInputEvent,
@@ -41,17 +39,12 @@ use smithay::{
         input::{
             InputEvent,
         },
-        renderer::{
-            Renderer,
-            Frame,
-        }
     },
     reexports::{
         winit::{
             dpi::LogicalSize,
             event::{Event, WindowEvent, ElementState, KeyboardInput, Touch, TouchPhase},
             event_loop::{ControlFlow, EventLoop as WinitEventLoop},
-            platform::run_return::EventLoopExtRunReturn,
             platform::unix::WindowExtUnix,
             window::{WindowId, WindowBuilder, Window as WinitWindow},
         },
@@ -64,25 +57,59 @@ impl<'a, X> Engine<Winit<'a>> for X
 where
     X: Input<Winit<'a>, &'a [Rect<2, f32>]> + Output<Winit<'a>, bool>
 {
+    fn done (&self) -> bool {
+        false
+    }
+
+    fn run (mut self, mut context: Winit<'a>) -> Result<Self> {
+        let (display, event) = context.init()?;
+        let state = &mut self;
+        loop {
+            if !context.running.fetch_and(true, Ordering::Relaxed) {
+                break
+            }
+
+            // Respond to user input
+            if let Err(e) = self.handle(context) {
+                crit!(context.logger, "Update error: {e}");
+                break
+            }
+
+            // Render display
+            if let Err(e) = self.render(&mut context) {
+                crit!(context.logger, "Render error: {e}");
+                break
+            }
+
+            // Flush display/client messages
+            display.borrow_mut().flush_clients()?;
+
+            // Dispatch state to next event loop tick
+            events.borrow_mut().dispatch(Some(Duration::from_millis(1)), &mut self)?;
+        }
+
+        Ok(self)
+    }
 }
 
-pub struct Winit<'a> {
+pub struct Winit {
     logger:        slog::Logger,
     running:       Arc<AtomicBool>,
+    display:       Rc<RefCell<smithay::reexports::wayland_server::Display<Self>>>,
+    events:        Rc<RefCell<smithay::reexports::calloop::EventLoop<'static, Self>>>,
     started:       Cell<Option<Instant>>,
-    outputs:       Rc<RefCell<HashMap<WindowId, WinitHostWindow>>>,
+    windows:       Rc<RefCell<HashMap<WindowId, WinitHostWindow>>>,
     winit_events:  Rc<RefCell<WinitEventLoop<()>>>,
     egl_context:   smithay::backend::egl::EGLContext,
     egl_display:   smithay::backend::egl::display::EGLDisplay,
-    renderer:      smithay::backend::renderer::gles2::Gles2Renderer,
-    frame:         smithay::backend::renderer::gles2::Gles2Frame<'a>,
+    renderer:      Rc<RefCell<smithay::backend::renderer::gles2::Gles2Renderer>>,
+    frame:         smithay::backend::renderer::gles2::Gles2Frame<'static>,
     shm:           smithay::wayland::shm::ShmState,
     dmabuf_state:  smithay::wayland::dmabuf::DmabufState,
-    dmabuf_global: smithay::wayland::dmabuf::DmabufGlobal,
     out_manager:   smithay::wayland::output::OutputManagerState,
 }
 
-impl<'a> Winit<'a> {
+impl Winit {
 
     /// Initialize winit engine
     fn new (logger: &slog::Logger, display: &smithay::reexports::wayland_server::DisplayHandle) -> Result<Self> {
@@ -110,14 +137,12 @@ impl<'a> Winit<'a> {
         // Init dmabuf support
         renderer.bind_wl_display(&display)?;
         let mut dmabuf_state = smithay::wayland::dmabuf::DmabufState::new();
-        let dmabuf_global = dmabuf_state.create_global::<Self, _>(
-            display,
-            renderer.dmabuf_formats().cloned().collect::<Vec<_>>(),
-            logger.clone(),
-        );
 
-        Ok(WinitEngine {
+        Ok(Winit {
             logger:        logger.clone(),
+            windows:       Rc::new(RefCell::new(HashMap::new())),
+            renderer:      Rc::new(RefCell::new(renderer)),
+            frame:         None
             shm:           smithay::wayland::shm::ShmState::new::<Self, _>(&display, vec![], logger.clone()),
             out_manager:   smithay::wayland::output::OutputManagerState::new_with_xdg_output::<Self>(&display),
             running:       Arc::new(AtomicBool::new(true)),
@@ -126,10 +151,41 @@ impl<'a> Winit<'a> {
             egl_display,
             egl_context,
             dmabuf_state,
-            dmabuf_global,
-            renderer:      Rc::new(RefCell::new(renderer)),
-            outputs:       Rc::new(RefCell::new(HashMap::new())),
         })
+    }
+
+    fn start (self) -> (Rc<RefCell<Display>>, Rc<RefCell<EventLoop>>) {
+
+        // Listen for events
+        let display = self.display.clone();
+        let fd = display.borrow_mut().backend().poll_fd().as_raw_fd();
+        self.events.borrow().handle().insert_source(
+            Generic::new(fd, Interest::READ, Mode::Level),
+            move |_, _, state| {
+                display.borrow_mut().dispatch_clients(state)?;
+                Ok(PostAction::Continue)
+            }
+        )?;
+
+        // Create a socket
+        let socket = ListeningSocketSource::new_auto(self.logger.clone()).unwrap();
+        let socket_name = socket.socket_name().to_os_string();
+
+        // Listen for new clients
+        let socket_logger  = self.logger.clone();
+        let mut socket_display = self.display.borrow().handle();
+        self.events.borrow().handle().insert_source(socket, move |client, _, _| {
+            debug!(socket_logger, "New client {client:?}");
+            socket_display.insert_client(
+                client.try_clone().expect("Could not clone socket for engine dispatcher"),
+                Arc::new(ClientState)
+            ).expect("Could not insert client in engine display");
+        })?;
+        std::env::set_var("WAYLAND_DISPLAY", &socket_name);
+
+        // Run main loop
+        (self.display.clone(), self.events.clone())
+
     }
 
     fn logger (&self) -> slog::Logger {
@@ -142,8 +198,8 @@ impl<'a> Winit<'a> {
 
     /// Render to each host window
     fn render (app: &mut Self) -> Result<()> {
-        let outputs = app.engine().outputs.clone();
-        for (_, output) in outputs.borrow().iter() {
+        let windows = app.engine().windows.clone();
+        for (_, output) in windows.borrow().iter() {
             if let Some(size) = output.resized.take() {
                 output.surface.resize(size.w, size.h, 0, 0);
             }
@@ -206,11 +262,11 @@ impl<'a> Winit<'a> {
 
     pub fn window_add (&self, window: WinitHostWindow) -> () {
         let window_id = window.id();
-        self.outputs.borrow_mut().insert(window_id, window);
+        self.windows.borrow_mut().insert(window_id, window);
     }
 
     pub fn window_update <'b> (&self, window_id: &WindowId, event: WindowEvent<'b>) -> bool {
-        match self.outputs.borrow().get(window_id) {
+        match self.windows.borrow().get(window_id) {
             Some(window) => {
                 let duration = Instant::now().duration_since(self.started.get().unwrap());
                 let nanos    = duration.subsec_nanos() as u64;
@@ -250,7 +306,7 @@ impl<'a> Winit<'a> {
     }
 
     pub fn window_del (&self, window_id: &WindowId) -> () {
-        self.outputs.borrow_mut().remove(&window_id);
+        self.windows.borrow_mut().remove(&window_id);
     }
 
     fn on_window <'b> (time: u64, window: &WinitHostWindow, event: WindowEvent<'b>) -> Vec<WinitEvent> {
@@ -377,7 +433,7 @@ impl<'a> Winit<'a> {
             screen
         )?;
         let window_id = window.id();
-        self.outputs.borrow_mut().insert(window_id, window);
+        self.windows.borrow_mut().insert(window_id, window);
         Ok(())
     }
 

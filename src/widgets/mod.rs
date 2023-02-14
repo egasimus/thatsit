@@ -35,6 +35,21 @@ pub struct Point<const N: usize, D: Unit>(
     pub [D; N],
 );
 
+impl<U: Unit> From<(U, U)> for Point<2, U> {
+    fn from ((a, b): (U, U)) -> Self {
+        Self([a, b])
+    }
+}
+
+impl<U: Unit> Point<2, U> {
+    fn x (&self) -> U {
+        self.0[0]
+    }
+    fn y (&self) -> U {
+        self.0[1]
+    }
+}
+
 impl<const N: usize, D: Unit> Default for Point<N, D> {
     fn default () -> Self {
         Self([D::NIL; N])
@@ -52,9 +67,36 @@ pub struct Rect<const N: usize, D: Unit>(
     pub Point<N, D>
 );
 
+impl<U: Unit> From<(U, U, U, U)> for Rect<2, U> {
+    fn from ((x, y, w, h): (U, U, U, U)) -> Self {
+        Self(Point([x, y]), Point([w, h]))
+    }
+}
+
+impl<U: Unit> Rect<2, U> {
+    fn position (&self) -> Point<2, U> {
+        self.0
+    }
+    fn size (&self) -> Point<2, U> {
+        self.1
+    }
+    fn x (&self) -> U {
+        self.position().x()
+    }
+    fn y (&self) -> U {
+        self.position().y()
+    }
+    fn w (&self) -> U {
+        self.size().x()
+    }
+    fn h (&self) -> U {
+        self.size().y()
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub enum Axis {
-    X = 1,
+    X = 0,
     Y,
     Z,
 }
@@ -69,15 +111,6 @@ pub struct Area<U: Unit>(
 );
 
 impl<U: Unit + Ord + Display + Debug> Area<U> {
-    /// Return an error if this area is larger than the minimum needed size
-    pub fn expect_min (&self, (min_w, min_h): (U, U)) -> std::io::Result<&Self> {
-        if self.w() < min_w || self.h() < min_h {
-            let msg = format!("no space ({:?} < {}x{})", self, min_w, min_h);
-            Err(Error::new(ErrorKind::Other, msg))
-        } else {
-            Ok(self)
-        }
-    }
 }
 
 impl<U: Unit> Area<U> {

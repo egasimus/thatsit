@@ -44,18 +44,15 @@ pub use crossterm::event::Event as CrosstermInputEvent;
 /// Exit flag. Setting this to true terminates the main loop.
 static EXITED: AtomicBool = AtomicBool::new(false);
 
-/// The unit of distance used throughout.
-pub type Unit = u16;
-
 /// An instance of an app hosted by crossterm.
 pub struct Crossterm<'a> {
     terminal: Box<dyn Write + 'a>,
-    pub area: Area<Unit>,
+    pub area: Rect<2, u16>,
 }
 
 impl<'a, X> Engine<Crossterm<'a>> for X
 where
-    X: Input<Event, bool> + Output<Crossterm<'a>, (Unit, Unit)>
+    X: Input<Event, bool> + Output<Crossterm<'a>, (u16, u16)>
 {
     fn done (&self) -> bool {
         false
@@ -68,8 +65,15 @@ where
             if context.exited() {
                 break
             }
-            state.render(&mut context)?;
-            state.handle(rx.recv()?)?;
+            // Respond to user input
+            if let Err(e) = state.render(&mut context) {
+                panic!("{e}");
+                // TODO error handling and graceful recovery
+            }
+            // Render display
+            if let Err(e) = state.handle(rx.recv()?) {
+                panic!("{e}");
+            };
         }
         Ok(self)
     }
@@ -79,7 +83,7 @@ impl<'a> Crossterm<'a> {
 
     pub fn new <T: Write + 'a> (output: T) -> Self {
         Self {
-            area:     Area::default(),
+            area:     Rect::default(),
             terminal: Box::new(output),
         }
     }
@@ -119,13 +123,13 @@ impl<'a> Crossterm<'a> {
         EXITED.fetch_and(true, Ordering::Relaxed)
     }
 
-    fn render <O: Output<Self, (Unit, Unit)>> (
+    fn render <O: Output<Self, (u16, u16)>> (
         &'a mut self,
         output: &mut O
     ) -> Result<()> {
         self.clear()?;
         let (w, h) = size()?;
-        self.area = Area(0, 0, w, h);
+        self.area = (0, 0, w, h).into();
         if let Err(error) = output.render(self) {
             self.write_error(format!("{error}").as_str())?;
         }
@@ -147,7 +151,7 @@ impl<'a> Crossterm<'a> {
     }
 
     /// Write some text to the terminal.
-    fn write_text (&mut self, x: Unit, y: Unit, text: &str) -> Result<()> {
+    fn write_text (&mut self, x: u16, y: u16, text: &str) -> Result<()> {
         self.terminal.execute(MoveTo(x, y))?.execute(Print(text))?;
         Ok(())
     }
@@ -159,7 +163,7 @@ impl<'a> Crossterm<'a> {
         self.write_text(0, 0, msg)
     }
 
-    pub fn area (&mut self, alter_area: impl Fn(&Area<u16>)->Area<u16>) -> &mut Self {
+    pub fn area (&mut self, alter_area: impl Fn(&Rect<2, u16>)->Rect<2, u16>) -> &mut Self {
         self.area = alter_area(&self.area);
         self
     }

@@ -47,7 +47,7 @@ impl<'a> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, Crossterm<'a>, (u16, 
         let mut y = 0;
         match self.0 {
             Axis::X => {
-                context.area.expect_min((self.1.len() as u16, 1))?; // FIXME height
+                self.expect_min(&context.area, (self.1.len() as u16, 1))?; // FIXME height
                 for item in self.1.iter() {
                     let (w, h) = Offset(x, 0, item).render(context)?.unwrap_or((0, 0));
                     x = x + w;
@@ -55,7 +55,7 @@ impl<'a> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, Crossterm<'a>, (u16, 
                 }
             },
             Axis::Y => {
-                context.area.expect_min((1, self.1.len() as u16))?; // FIXME width
+                self.expect_min(&context.area, (1, self.1.len() as u16))?; // FIXME width
                 for item in self.1.iter() {
                     let (w, h) = Offset(0, y, item).render(context)?.unwrap_or((0, 0));
                     x = x.max(w);
@@ -63,7 +63,7 @@ impl<'a> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, Crossterm<'a>, (u16, 
                 }
             },
             Axis::Z => {
-                context.area.expect_min((1, 1 as u16))?; // FIXME size
+                self.expect_min(&context.area, (1, 1 as u16))?; // FIXME size
                 for item in self.1.iter().rev() {
                     let (w, h) = item.render(context)?.unwrap_or((0, 0));
                     x = x.max(w);
@@ -72,6 +72,18 @@ impl<'a> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, Crossterm<'a>, (u16, 
             }
         };
         Ok(Some((x, y)))
+    }
+}
+
+impl<'a> Stacked<'a, Crossterm<'a>, (u16, u16)> {
+    /// Return an error if this area is larger than the minimum needed size
+    pub fn expect_min (&self, area: &Rect<2, u16>, (min_w, min_h): (u16, u16)) -> std::io::Result<&Self> {
+        if area.w() < min_w || area.h() < min_h {
+            let msg = format!("no space ({:?} < {}x{})", self, min_w, min_h);
+            Err(Error::new(ErrorKind::Other, msg))
+        } else {
+            Ok(self)
+        }
     }
 }
 

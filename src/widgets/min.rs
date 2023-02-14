@@ -17,13 +17,13 @@ where
     fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
         self.get().render(context.area(|area|match self {
             Self::X(min_width, _) => {
-                Area(area.0, area.1, area.2.max(*min_width), area.3)
+                (area.x(), area.y(), area.w().min(*min_width), area.h()).into()
             },
             Self::Y(min_height, _) => {
-                Area(area.0, area.1, area.2, area.3.max(*min_height))
+                (area.x(), area.y(), area.w(), area.h().min(*min_height)).into()
             },
             Self::XY((min_width, min_height), _) => {
-                Area(area.0, area.1, area.2.max(*min_width), area.3.max(*min_height))
+                (area.x(), area.y(), area.w().min(*min_width), area.h().min(*min_height)).into()
             }
         }))
     }

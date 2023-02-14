@@ -19,9 +19,9 @@ where
 {
     fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
         self.get().render(context.area(|area|match self {
-            Self::X(width, _)            => Area(area.0, area.1, *width, area.3),
-            Self::Y(height, _)           => Area(area.0, area.1, area.2, *height),
-            Self::XY((width, height), _) => Area(area.0, area.1, *width, *height)
+            Self::X(width, _)            => (area.x(), area.y(), *width, area.h()).into(),
+            Self::Y(height, _)           => (area.x(), area.y(), area.w(), *height).into(),
+            Self::XY((width, height), _) => (area.x(), area.y(), *width, *height).into()
         }))
     }
 }

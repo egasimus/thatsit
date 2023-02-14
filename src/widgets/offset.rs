@@ -19,12 +19,12 @@ where
     T: Output<Crossterm<'a>, (u16, u16)>
 {
     fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
-        self.2.render(context.area(|area|Area(
+        self.2.render(context.area(|area|(
             area.x() + self.0,
             area.y() + self.1,
             area.w().saturating_sub(self.0),
             area.h().saturating_sub(self.1)
-        )))
+        ).into()))
     }
 }
 
