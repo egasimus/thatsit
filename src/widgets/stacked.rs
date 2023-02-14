@@ -77,10 +77,32 @@ impl<'a> Output<Crossterm<'a>, (u16, u16)> for Stacked<'a, Crossterm<'a>, (u16, 
 
 #[cfg(test)]
 mod test {
-    use crate::*;
+    use crate::{*, engines::tui::Crossterm, widgets::stacked::Stacked};
+
+    struct StackedWidget;
+
+    impl<'a> Output<Crossterm<'a>, (u16, u16)> for StackedWidget {
+
+        fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
+            Stacked::x(|add|{
+                add("String");
+                add(String::from("String"));
+                add(Stacked::y(|add|{
+                    add("String");
+                    add(String::from("String"));
+                    add(Stacked::z(|add|{
+                        add("String");
+                        add(String::from("String"));
+                    }));
+                }));
+            }).render(context)
+        }
+
+    }
 
     #[test]
     fn should_stack () -> Result<()> {
-        unimplemented!()
+        let widget = StackedWidget;
+        Ok(())
     }
 }
