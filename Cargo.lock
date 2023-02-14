@@ -1452,6 +1452,7 @@ dependencies = [
  "slog-term",
  "smithay",
  "thiserror",
+ "wayland-egl",
  "x11rb",
  "xcursor",
  "xkbcommon 0.4.1",
