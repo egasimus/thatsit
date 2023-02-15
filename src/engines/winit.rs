@@ -26,26 +26,27 @@ use smithay::{
             display::EGLDisplay
         },
         renderer::{ImportEgl, Bind},
-        winit::{Error as WinitError, WindowSize, WinitVirtualDevice,}
+        winit::{WindowSize, WinitVirtualDevice,}
     },
-    backend::{
-        input::{
-            InputEvent,
-        },
-    },
-    reexports::{
-        winit::{
-            dpi::{LogicalSize, LogicalPosition},
-            event::{MouseButton, MouseScrollDelta, Event, WindowEvent, ElementState, KeyboardInput, Touch, TouchPhase},
-            event_loop::{ControlFlow, EventLoop as WinitEventLoop},
-            platform::unix::WindowExtUnix,
-            window::{WindowId, WindowBuilder, Window as WinitWindow},
-        },
-    },
+    //backend::{
+        //input::{
+            //InputEvent,
+        //},
+    //},
+    //reexports::{
+    //},
     utils::{Size, Physical}
-    //wayland::socket::ListeningSocketSource,
-    //reexports::wayland_server::backend::{ClientId, ClientData, DisconnectReason},
-    //reexports::calloop::{PostAction, Interest, Mode, generic::Generic}
+    ////wayland::socket::ListeningSocketSource,
+    ////reexports::wayland_server::backend::{ClientId, ClientData, DisconnectReason},
+    ////reexports::calloop::{PostAction, Interest, Mode, generic::Generic}
+};
+
+use winit::{
+    dpi::{LogicalSize, LogicalPosition},
+    event::{MouseButton, MouseScrollDelta, Event, WindowEvent, ElementState, KeyboardInput, Touch, TouchPhase},
+    event_loop::{ControlFlow, EventLoop as WinitEventLoop},
+    platform::unix::WindowExtUnix,
+    window::{WindowId, WindowBuilder, Window as WinitWindow},
 };
 
 use smithay::reexports::winit::platform::run_return::EventLoopExtRunReturn;
@@ -167,8 +168,7 @@ impl Winit {
             .with_inner_size(LogicalSize::new(16, 16))
             .with_title("Charlie Null")
             .with_visible(false)
-            .build(&winit_events)
-            .map_err(WinitError::InitFailed)?);
+            .build(&winit_events)?);
 
         // Create the renderer and EGL context
         let egl_display = EGLDisplay::new(window, logger.clone()).unwrap();
@@ -576,8 +576,7 @@ impl<'a> WinitHostWindow {
             .with_inner_size(LogicalSize::new(width, height))
             .with_title(title)
             .with_visible(true)
-            .build(events)
-            .map_err(WinitError::InitFailed)?;
+            .build(events)?;
 
         Ok(window)
 
@@ -616,7 +615,7 @@ impl<'a> WinitHostWindow {
             egl.config_id(),
             unsafe {
                 wayland_egl::WlEglSurface::new_from_raw(surface as *mut _, width, height)
-            }.map_err(|err| WinitError::Surface(err.into()))?,
+            }?,
             logger.clone(),
         )?)
     }

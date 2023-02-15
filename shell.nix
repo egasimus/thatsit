@@ -1,6 +1,40 @@
-{ pkgs ? import <nixpkgs> {}, ... }: pkgs.mkShell {
-  name = "thatsit";
-  buildInputs       = with pkgs; [ ncurses wayland libxkbcommon xorg.xcbutil xorg.xcbutilimage xorg.libXcursor xorg.libXrandr xorg.libXi libglvnd udev libseat dbus libinput gnome.gdm mesa ];
-  nativeBuildInputs = with pkgs; [ pkg-config cmake xwayland mold mesa-demos wezterm ];
-  LD_LIBRARY_PATH   = with pkgs; lib.strings.makeLibraryPath [ libglvnd wayland ];
+{ pkgs ? import <nixpkgs> {}, ... }: let
+
+  tools = with pkgs; [ pkg-config cmake xwayland mold mesa-demos wezterm ];
+
+  libs  = with pkgs; [
+    brotli
+    bzip2
+    dbus
+    fontconfig
+    freetype
+    gnome.gdm
+    libffi
+    libglvnd
+    libinput
+    libpng
+    libseat
+    libxkbcommon
+    mesa
+    ncurses
+    udev
+    wayland
+    xorg.libXcursor
+    xorg.libXi
+    xorg.libXrandr
+    xorg.xcbutil
+    xorg.xcbutilimage
+    zlib
+  ];
+
+in pkgs.mkShell {
+
+  name              = "thatsit";
+
+  nativeBuildInputs = tools;
+
+  buildInputs       = libs;
+
+  LD_LIBRARY_PATH   = pkgs.lib.strings.makeLibraryPath libs;
+
 }

@@ -26,6 +26,7 @@ xkbcommon = "0.4.0"
 wayland-egl = "0.30.0"
 #wayland-server = "0.30.0"
 #wayland-protocols = { version = "0.30.0", features = ["unstable", "staging", "server"] }
+winit = "0.27.5"
 
 [dependencies.smithay]
 git = "https://github.com/Smithay/smithay.git"
@@ -34,7 +35,7 @@ features = [
   "backend_drm",
   "backend_egl",
   #"backend_gbm",
-  "backend_libinput",
+  #"backend_libinput",
   #"backend_session",
   #"backend_udev",
   "backend_winit",
