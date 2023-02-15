@@ -32,3 +32,28 @@ where
         Ok(self)
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use crate::Engine;
+
+    #[test]
+    fn repl_should_be_done () {
+        let app = "just a label";
+        assert_eq!(app.done(), true);
+        // FIXME: The "done" flag should be a value returned by the update method of the root widget?
+    }
+
+    //#[test]
+    //fn repl_should_run () {
+        //let app = "just a label";
+        //if let Ok(result) = app.run((std::io::stdin(), std::io::stdout())) {
+            //assert_eq!(result, app)
+        //} else {
+            //panic!("running the repl engine failed")
+        //}
+        //// FIXME: Here stdin and stdout should be replaced with general streams that just happen to
+        //// default to stdio; and in the test, input/output buffers should be passed.
+    //}
+}
