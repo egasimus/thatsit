@@ -12,9 +12,9 @@ impl Input<CrosstermInputEvent, bool> for ExampleComponent {
     }
 }
 
-impl<'a> Output<Crossterm<'a>, (u16, u16)> for ExampleComponent {
-    fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<(u16, u16)>> {
-        Ok(Some((10, 10)))
+impl<'a> Output<Crossterm<'a>, [u16;2]> for ExampleComponent {
+    fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<[u16;2]>> {
+        Ok(Some([10, 10]))
     }
 }
 

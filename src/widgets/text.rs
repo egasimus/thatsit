@@ -27,17 +27,3 @@ impl Output<String, ()> for &str {
         Ok(Some(()))
     }
 }
-
-impl<'a> Output<TUI<'a>, (u16, u16)> for String {
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<(u16, u16)>> {
-        // FIXME: render the string as a label
-        Ok(Some((10, 10)))
-    }
-}
-
-impl<'a> Output<TUI<'a>, (u16, u16)> for &str {
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<(u16, u16)>> {
-        // FIXME: render the string as a label
-        Ok(Some((10, 10)))
-    }
-}

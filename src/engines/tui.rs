@@ -53,7 +53,7 @@ pub struct TUI<'a> {
 
 impl<'a, X> Engine<TUI<'a>> for X
 where
-    X: Input<Event, bool> + Output<TUI<'a>, (u16, u16)>
+    X: Input<Event, bool> + Output<TUI<'a>, [u16;2]>
 {
     fn done (&self) -> bool {
         false
@@ -138,7 +138,7 @@ impl<'a> TUI<'a> {
         EXITED.fetch_and(true, Ordering::Relaxed)
     }
 
-    fn render <O: Output<Self, (u16, u16)>> (
+    fn render <O: Output<Self, [u16;2]>> (
         &'a mut self,
         output: &mut O
     ) -> Result<()> {
