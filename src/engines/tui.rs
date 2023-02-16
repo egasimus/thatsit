@@ -80,6 +80,19 @@ where
 }
 
 impl<'a> Crossterm<'a> {
+    /// Create a TUI context talking to the user over stdin/stdout
+    pub fn stdio () -> Self {
+        let input  = Box::new(std::io::stdin().lock());
+        let output = Box::new(std::io::stdout());
+        Self::new(output)
+    }
+
+    /// Create a TUI context taking predefined input and rendering to string
+    pub fn harness (input: &'static [u8]) -> Self {
+        let input  = Box::new(std::io::BufReader::new(input));
+        let output = Box::new(vec![]);
+        Self::new(output)
+    }
 
     pub fn new <T: Write + 'a> (output: T) -> Self {
         Self {
@@ -166,6 +179,31 @@ impl<'a> Crossterm<'a> {
     pub fn area (&mut self, alter_area: impl Fn(&Rect<2, u16>)->Rect<2, u16>) -> &mut Self {
         self.area = alter_area(&self.area);
         self
+    }
+
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{Engine, engines::tui::Crossterm};
+
+    #[test]
+    fn tui_should_be_done () {
+        unimplemented!();
+        // FIXME: The "done" flag should be a value returned by the update method of the root widget?
+    }
+
+    #[test]
+    fn tui_should_run () {
+        let app = "just a label";
+        let engine = Crossterm::harness("newline\n".as_bytes());
+        if let Ok(result) = app.run(engine) {
+            assert_eq!(result, app);
+            assert_eq!(engine.terminal, "just a label".as_bytes());
+        } else {
+            panic!("running the repl engine failed")
+        }
     }
 
 }

@@ -23,11 +23,13 @@ impl Output<String, ()> for ExampleComponent {
 
 fn main () -> Result<()> {
 
+    let stdin = std::io::stdin().lock();
+
     let result = ExampleComponent {
         done: false,
         label: "Enter some text to be stored".to_string(),
         state: "".to_string()
-    }.run((std::io::stdin(), std::io::stdout()))?;
+    }.run(Repl::stdio())?;
 
     Ok(())
 }
