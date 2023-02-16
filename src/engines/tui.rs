@@ -8,8 +8,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::io::Write;
 use std::thread::spawn;
 use std::time::Duration;
-use crate::{*, widgets::*};
-use crossterm::{
+use crate::{*, layouts::*};
+
+use ::crossterm::{
     ExecutableCommand,
     QueueableCommand,
     event::{
@@ -39,25 +40,25 @@ use crossterm::{
     },
 };
 
-pub use crossterm::event::Event as CrosstermInputEvent;
+pub use crossterm::event::Event as TUIInputEvent;
 
 /// Exit flag. Setting this to true terminates the main loop.
 static EXITED: AtomicBool = AtomicBool::new(false);
 
 /// An instance of an app hosted by crossterm.
-pub struct Crossterm<'a> {
+pub struct TUI<'a> {
     terminal: Box<dyn Write + 'a>,
-    pub area: Rect<2, u16>,
+    pub area: [u16; 4]
 }
 
-impl<'a, X> Engine<Crossterm<'a>> for X
+impl<'a, X> Engine<TUI<'a>> for X
 where
-    X: Input<Event, bool> + Output<Crossterm<'a>, (u16, u16)>
+    X: Input<Event, bool> + Output<TUI<'a>, (u16, u16)>
 {
     fn done (&self) -> bool {
         false
     }
-    fn run (mut self, mut context: Crossterm<'a>) -> Result<Self> {
+    fn run (mut self, mut context: TUI<'a>) -> Result<Self> {
         context.setup_output()?;
         let rx = context.setup_input();
         let state = &mut self;
@@ -79,7 +80,8 @@ where
     }
 }
 
-impl<'a> Crossterm<'a> {
+impl<'a> TUI<'a> {
+
     /// Create a TUI context talking to the user over stdin/stdout
     pub fn stdio () -> Self {
         let input  = Box::new(std::io::stdin().lock());
@@ -96,7 +98,7 @@ impl<'a> Crossterm<'a> {
 
     pub fn new <T: Write + 'a> (output: T) -> Self {
         Self {
-            area:     Rect::default(),
+            area:     [0, 0, 0, 0],
             terminal: Box::new(output),
         }
     }
@@ -142,7 +144,7 @@ impl<'a> Crossterm<'a> {
     ) -> Result<()> {
         self.clear()?;
         let (w, h) = size()?;
-        self.area = (0, 0, w, h).into();
+        self.area = [0, 0, w, h];
         if let Err(error) = output.render(self) {
             self.write_error(format!("{error}").as_str())?;
         }
@@ -176,7 +178,7 @@ impl<'a> Crossterm<'a> {
         self.write_text(0, 0, msg)
     }
 
-    pub fn area (&mut self, alter_area: impl Fn(&Rect<2, u16>)->Rect<2, u16>) -> &mut Self {
+    pub fn area (&mut self, alter_area: impl Fn(&[u16;4])->[u16;4]) -> &mut Self {
         self.area = alter_area(&self.area);
         self
     }
@@ -186,7 +188,7 @@ impl<'a> Crossterm<'a> {
 #[cfg(test)]
 mod test {
 
-    use crate::{Engine, engines::tui::Crossterm};
+    use crate::{Engine, engines::tui::TUI};
 
     #[test]
     fn tui_should_be_done () {
@@ -197,7 +199,7 @@ mod test {
     #[test]
     fn tui_should_run () {
         let app = "just a label";
-        let engine = Crossterm::harness("newline\n".as_bytes());
+        let engine = TUI::harness("newline\n".as_bytes());
         if let Ok(result) = app.run(engine) {
             assert_eq!(result, app);
             assert_eq!(engine.terminal, "just a label".as_bytes());

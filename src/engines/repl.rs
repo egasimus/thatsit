@@ -62,7 +62,7 @@ pub type ReplHarness = Repl<std::io::BufReader<&'static [u8]>, Vec<u8>>;
 #[cfg(test)]
 mod test {
 
-    use crate::{Engine, engines::repl::Repl};
+    use crate::{Engine, engines::repl::ReplHarness};
     use std::io::BufReader;
 
     #[test]
@@ -75,7 +75,7 @@ mod test {
     #[test]
     fn repl_should_run () {
         let app = "just a label";
-        let engine = Repl::harness("newline\n".as_bytes());
+        let engine = ReplHarness::harness("newline\n".as_bytes());
         if let Ok(result) = app.run(engine) {
             assert_eq!(result, app);
             assert_eq!(engine.output, "just a label".as_bytes());

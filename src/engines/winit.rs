@@ -2,7 +2,7 @@
 //!
 //! This platform renders an interface to one or more windows created with `winit`.
 
-use crate::{*, widgets::*};
+use crate::{*, layouts::*};
 
 use slog::{debug, warn, crit};
 
@@ -55,7 +55,7 @@ pub type Unit = f32;
 
 impl<'a, X> Engine<Winit> for X
 where
-    X: Input<WinitEvent, &'a [Rect<2, f32>]> + Output<Winit, bool>
+    X: Input<WinitEvent, bool> + Output<Winit, Vec<[f32;4]>>
 {
     fn done (&self) -> bool {
         false
@@ -483,7 +483,7 @@ pub struct WinitHostWindow {
     /// The current window title
     pub title: String,
     /// The current window size
-    pub size:  Point<2, u32>,
+    pub size:  (u32, u32),
     /// The current window scaling
     pub scale: Rc<RefCell<WindowSize>>,
 
@@ -545,7 +545,7 @@ impl<'a> WinitHostWindow {
             screen,
             output,
             surface:  Self::surface(logger, egl, &window)?,
-            size:  Point([w, h]),
+            size:  (w, h),
             scale: Rc::new(RefCell::new(WindowSize {
                 physical_size: (w as i32, h as i32).into(),
                 scale_factor:  window.scale_factor(),

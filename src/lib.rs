@@ -1,7 +1,7 @@
 #![feature(fn_traits, unboxed_closures)]
 
 pub mod engines;
-
+pub mod layouts;
 pub mod widgets;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -106,6 +106,7 @@ impl<'a, T, U> Collector<'a, T, U> {
         items
     }
 }
+
 
 #[cfg(test)]
 mod test {
