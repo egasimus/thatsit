@@ -47,7 +47,6 @@ static EXITED: AtomicBool = AtomicBool::new(false);
 impl<W: Write, X: Input<TUIInputEvent, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
 
     fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
-        context.setup_output()?;
         let state = &mut self;
         loop {
             // Render display
@@ -80,15 +79,6 @@ pub struct TUI<W: Write> {
 }
 
 impl<W: Write> TUI<W> {
-
-
-    fn setup_output (&mut self) -> Result<()> {
-        self.output
-            .execute(EnterAlternateScreen)?
-            .execute(Hide)?;
-        enable_raw_mode()?;
-        Ok(())
-    }
 
     fn clear (&mut self) -> Result<()> {
         self.output
@@ -149,19 +139,23 @@ impl<W: Write> TUI<W> {
 type TUIStdio = TUI<std::io::Stdout>;
 
 impl TUIStdio {
-    /// Create a TUI context talking to the user over stdin/stdout.
-    /// This spawns an input thread, which passes input events
-    /// over a `mpsc::channel` into the render thread.
-    /// Only stops when the exit flag is set.
-    pub fn stdio () -> Self {
-        let (tx, rx) = channel::<TUIInputEvent>();
+
+    /// Create a TUI context for talking to the user over stdin/stdout.
+    pub fn stdio () -> Result<Self> {
+        let mut output = std::io::stdout();
+        output.execute(EnterAlternateScreen)?.execute(Hide)?;
+        enable_raw_mode()?;
+        let (tx, input) = channel::<TUIInputEvent>();
         let exited = Arc::new(AtomicBool::new(false));
+        // Spawn the input thread
         let exit_input_thread = exited.clone();
         spawn(move || {
             loop {
+                // Exit if flag is set
                 if exit_input_thread.fetch_and(true, Ordering::Relaxed) {
                     break
                 }
+                // Listen for events and send them to the main thread
                 if poll(Duration::from_millis(100)).is_ok() {
                     if tx.send(read().unwrap()).is_err() {
                         break
@@ -169,28 +163,21 @@ impl TUIStdio {
                 }
             }
         });
-        Self {
-            input:  rx,
-            output: std::io::stdout(),
-            area:   [0, 0, 0, 0],
-            exited: exited.clone(),
-        }
+        Ok(Self { exited, input, output, area: [0, 0, 0, 0] })
     }
+
 }
 
 type TUIHarness = TUI<Vec<u8>>;
 
 impl TUIHarness {
-    /// Create a TUI context taking predefined input and rendering to string
+    /// Create a TUI context that takes predefined input and renders to a buffer
     pub fn harness (input: &'static [u8]) -> Self {
+        let output = vec![];
+        let exited = Arc::new(AtomicBool::new(false));
         let input = Box::new(std::io::BufReader::new(input));
-        let (tx, rx) = channel::<TUIInputEvent>();
-        Self {
-            input:  rx,
-            output: vec![],
-            area:   [0, 0, 0, 0],
-            exited: Arc::new(AtomicBool::new(false)),
-        }
+        let (tx, input) = channel::<TUIInputEvent>();
+        Self { exited, input, output, area: [0, 0, 0, 0] }
     }
 }
 

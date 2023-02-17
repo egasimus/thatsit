@@ -27,7 +27,7 @@ fn main () -> Result<()> {
     let result = ExampleComponent {
         label: "Enter some text to be stored".to_string(),
         state: "".to_string()
-    }.run(TUI::stdio())?;
+    }.run(TUI::stdio()?)?;
 
     Ok(())
 

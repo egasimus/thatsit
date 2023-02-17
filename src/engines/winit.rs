@@ -634,3 +634,17 @@ impl<'a> WinitHostWindow {
     }
 
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{Engine, engines::winit::Winit};
+    use std::error::Error;
+
+    //#[test]
+    //fn winit_should_run () -> Result<(), Box<dyn Error>> {
+        //let app = "just a label";
+        //let engine = Winit::harness("newline\n".as_bytes());
+        //assert_eq!(app.run(engine)?.output, "just a label".as_bytes());
+        //Ok(())
+    //}
+}
