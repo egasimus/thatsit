@@ -11,22 +11,21 @@ use std::{io::{Write, Error, ErrorKind}};
 
 impl<S: AsRef<str>> Input<Event, bool> for S {
     fn handle (&mut self, _: Event) -> Result<Option<bool>> {
-        // FIXME: render the string as a prompt
         Ok(None)
     }
 }
 
 impl<W: Write> Output<TUI<W>, [u16;2]> for String {
-    fn render (&self, _: &mut TUI<W>) -> Result<Option<[u16;2]>> {
-        // FIXME: render the string as a label
-        Ok(Some([10, 10]))
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
+        self.as_str().render(context)
     }
 }
 
 impl<W: Write> Output<TUI<W>, [u16;2]> for &str {
-    fn render (&self, _: &mut TUI<W>) -> Result<Option<[u16;2]>> {
-        // FIXME: render the string as a label
-        Ok(Some([10, 10]))
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
+        context.put(context.area.x(), context.area.y(), &self)?;
+        // FIXME: handle line wrap
+        Ok(Some([self.len() as u16, 1]))
     }
 }
 

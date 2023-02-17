@@ -41,29 +41,28 @@ use std::io::Write;
 use std::thread::spawn;
 use std::time::Duration;
 
-/// Exit flag. Setting this to true terminates the main loop.
-static EXITED: AtomicBool = AtomicBool::new(false);
-
 impl<W: Write, X: Input<TUIInputEvent, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
 
     fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
-        let state = &mut self;
+
+        context.setup()?;
+
         loop {
             // Render display
-            if let Err(e) = state.render(&mut context) {
-                panic!("{e}");
-                // TODO error handling and graceful recovery
-            }
+            context.render(&self)?;
+
             // Respond to user input
-            if let Err(e) = state.handle(context.input.recv()?) {
+            if let Err(e) = self.handle(context.input.recv()?) {
                 panic!("{e}");
                 // TODO error handling and graceful recovery
             };
+
             // Repeat until done
             if context.exited() {
                 break
             }
         }
+
         Ok(context)
     }
 
@@ -72,53 +71,54 @@ impl<W: Write, X: Input<TUIInputEvent, bool> + Output<TUI<W>, [u16;2]>> Engine<T
 /// An instance of an app hosted by crossterm.
 #[derive(Debug)]
 pub struct TUI<W: Write> {
+    /// Exit flag. Setting this to true terminates the main loop.
     exited: Arc<AtomicBool>,
-    input:  Receiver<TUIInputEvent>,
-    output: W,
+    /// Input receiver. Receives input events from input thread.
+    input: Receiver<TUIInputEvent>,
+    /// Output. Terminal commands are written to this.
+    pub output: W,
+    /// Currently available screen area.
     pub area: [u16; 4]
 }
 
 impl<W: Write> TUI<W> {
 
-    fn clear (&mut self) -> Result<()> {
-        self.output
-            .queue(ResetColor)?
-            .queue(Clear(ClearType::All))?
-            .queue(Hide)?;
+    fn setup (&mut self) -> Result<()> {
+        self.output.execute(EnterAlternateScreen)?.execute(Hide)?;
         Ok(())
     }
 
-    fn exited (&self) -> bool {
-        EXITED.fetch_and(true, Ordering::Relaxed)
-    }
-
-    fn render <O: Output<Self, [u16;2]>> (&mut self, output: &mut O) -> Result<()> {
-        self.clear()?;
-        let (w, h) = size()?;
-        self.area = [0, 0, w, h];
-        if let Err(error) = output.render(self) {
-            self.write_error(format!("{error}").as_str())?;
-        }
-        // Flush output buffer
-        self.output
-            .flush()
-            .unwrap();
-        Ok(())
-    }
-
-    fn cleanup (&mut self) -> Result<()> {
-        // Clean up
-        self.output
-            .execute(ResetColor)?
-            .execute(Show)?
-            .execute(LeaveAlternateScreen)?;
+    pub fn cleanup (&mut self) -> Result<()> {
+        self.output.execute(ResetColor)?.execute(Show)?.execute(LeaveAlternateScreen)?;
         disable_raw_mode()?;
         Ok(())
     }
 
+    fn exited (&self) -> bool {
+        self.exited.fetch_and(true, Ordering::Relaxed)
+    }
+
+    fn render (&mut self, widget: &impl Output<Self, [u16;2]>) -> Result<()> {
+        self.clear()?;
+        let (w, h) = size()?;
+        self.area = [0, 0, w, h];
+        if let Err(error) = widget.render(self) {
+            self.write_error(format!("{error}").as_str())?;
+        }
+        // Flush output buffer
+        self.output.flush()?;
+        Ok(())
+    }
+
+    /// Clear the screen
+    fn clear (&mut self) -> Result<()> {
+        self.output.queue(ResetColor)?.queue(Clear(ClearType::All))?.queue(Hide)?;
+        Ok(())
+    }
+
     /// Write some text to the terminal.
-    fn write_text (&mut self, x: u16, y: u16, text: &str) -> Result<()> {
-        self.output.execute(MoveTo(x, y))?.execute(Print(text))?;
+    pub fn put (&mut self, x: u16, y: u16, text: &str) -> Result<()> {
+        self.output.queue(MoveTo(x, y))?.queue(Print(text))?;
         Ok(())
     }
 
@@ -126,7 +126,7 @@ impl<W: Write> TUI<W> {
     fn write_error (&mut self, msg: &str) -> Result<()> {
         self.clear()?;
         self.output.queue(SetForegroundColor(Color::Red))?;
-        self.write_text(0, 0, msg)
+        self.put(0, 0, msg)
     }
 
     pub fn area (&mut self, alter_area: impl Fn(&[u16;4])->[u16;4]) -> &mut Self {
@@ -142,8 +142,7 @@ impl TUIStdio {
 
     /// Create a TUI context for talking to the user over stdin/stdout.
     pub fn stdio () -> Result<Self> {
-        let mut output = std::io::stdout();
-        output.execute(EnterAlternateScreen)?.execute(Hide)?;
+        let output = std::io::stdout();
         enable_raw_mode()?;
         let (tx, input) = channel::<TUIInputEvent>();
         let exited = Arc::new(AtomicBool::new(false));
@@ -189,7 +188,7 @@ mod test {
 
     #[test]
     fn tui_should_run () -> Result<(), Box<dyn Error>> {
-        let app = "just a label";
+        let app = String::from("just a label");
         let engine = TUI::harness("newline\n".as_bytes());
         engine.exited.store(true, Ordering::Relaxed);
         assert_eq!(app.run(engine)?.output, "just a label".as_bytes());

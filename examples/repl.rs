@@ -1,4 +1,5 @@
 use thatsit_core::{*, engines::repl::*};
+use std::io::{BufRead, Write};
 
 #[derive(Debug)]
 pub struct ExampleComponent {
@@ -14,9 +15,9 @@ impl Input<String, String> for ExampleComponent {
     }
 }
 
-impl Output<String, ()> for ExampleComponent {
-    fn render (&self, context: &mut String) -> Result<Option<()>> {
-        *context = format!("\n{:?} ", self);
+impl<R, W: Write> Output<Repl<R, W>, [u16;2]> for ExampleComponent {
+    fn render (&self, context: &mut Repl<R, W>) -> Result<Option<[u16;2]>> {
+        context.write(format!("\n{:?} ", self).as_bytes())?;
         Ok(None)
     }
 }
