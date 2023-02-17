@@ -1,12 +1,6 @@
 use crate::{*, engines::repl::*};
 use std::io::{BufRead, Write};
 
-impl<S: AsRef<str>> Input<String, String> for S {
-    fn handle (&mut self, _engine: &mut String) -> Result<Option<String>> {
-        Ok(None)
-    }
-}
-
 impl<R: BufRead, W: Write> Output<Repl<R, W>, [u16;2]> for String {
     fn render (&self, engine: &mut Repl<R, W>) -> Result<Option<[u16;2]>> {
         self.as_str().render(engine)

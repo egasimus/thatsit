@@ -1,3 +1,5 @@
+//! Rows, columns, and layers
+
 use crate::*;
 use super::*;
 

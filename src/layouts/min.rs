@@ -1,3 +1,5 @@
+//! Constrain the minimum size of a widget
+
 use crate::*;
 use super::*;
 

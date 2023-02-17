@@ -1,3 +1,5 @@
+//! Offset the position of a widget.
+
 use crate::*;
 
 /// Render the contained Widget in a sub-Area starting some distance from

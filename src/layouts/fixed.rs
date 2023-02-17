@@ -1,3 +1,5 @@
+//! Constrain a widget to a fixed size
+
 use crate::*;
 use super::*;
 

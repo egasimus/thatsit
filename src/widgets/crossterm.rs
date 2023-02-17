@@ -9,12 +9,6 @@ use crate::{
 
 use std::{io::{Write, Error, ErrorKind}};
 
-impl<W: Write, S: AsRef<str>> Input<TUI<W>, bool> for S {
-    fn handle (&mut self, _engine: &mut TUI<W>) -> Result<Option<bool>> {
-        Ok(None)
-    }
-}
-
 impl<W: Write> Output<TUI<W>, [u16;2]> for String {
     fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         self.as_str().render(engine)

@@ -1,3 +1,5 @@
+//! Alignment primitives.
+
 use crate::*;
 use super::*;
 

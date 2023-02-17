@@ -1,3 +1,5 @@
+//! Abstract layout primitives.
+
 mod align;
 pub use align::*;
 

@@ -1,13 +1,16 @@
+//! Focus-based navigation
+
 use crate::*;
 use super::*;
 
 use std::{slice::Iter, slice::IterMut};
 
-///
-/// TODO focused_at (index: usize)
-/// impl Focus<T> for Vec<T> ?
-/// impl Stack<T> for Vec<T> ?
-///
+//
+// TODO: struct Focused<T> { items: T, index: usize };
+// - focused_at (index: usize)
+// - impl Focus<T> for Vec<T>
+// - impl Stack<T> for Vec<T> - e.g. ["foo", "bar", "baz"] as Stacked<Axis::Y>
+//
 
 /// The Focus API.
 pub trait Focus<T> {
