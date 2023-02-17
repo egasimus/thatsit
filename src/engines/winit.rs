@@ -130,6 +130,10 @@ impl Winit {
         self.started.set(Some(Instant::now()));
     }
 
+    fn exit (&self) {
+        self.running.store(false, Ordering::Relaxed)
+    }
+
     fn exited (&self) -> bool {
         !self.running.fetch_and(true, Ordering::Relaxed)
     }
@@ -176,7 +180,6 @@ impl Winit {
                     _ => {}
                 }
             });
-
             if closed {
                 Err(WinitHostError::WindowClosed.into())
             } else {
@@ -588,36 +591,16 @@ impl<'a> WinitHostWindow {
 
 #[cfg(test)]
 mod test {
-    use crate::{Engine, engines::winit::Winit};
-    use std::error::Error;
-
-    //#[test]
-    //fn winit_should_run () -> Result<(), Box<dyn Error>> {
-        //let app = "just a label";
-        //let engine = Winit::harness("newline\n".as_bytes());
-        //assert_eq!(app.run(engine)?.output, "just a label".as_bytes());
-        //Ok(())
-    //}
-}
-
-#[cfg(test)]
-mod test {
 
     use crate::{*, layouts::*, engines::winit::*};
     use std::{error::Error, sync::atomic::Ordering};
 
     #[test]
-    fn tui_should_run () -> Result<()> {
+    fn winit_should_run () -> Result<()> {
         let app = String::from("just a label");
-        let (engine, sender) = Winit::harness();
+        let engine = Winit::new()?;
         engine.exit(); // run once then exit
-        for key in "newline\n".chars() {
-            let key = KeyEvent::new(KeyCode::Char(key), KeyModifiers::empty());
-            sender.send(TUIInputEvent::Key(key))?;
-        }
-        let output = String::from_utf8(app.run(engine)?.output)?;
-        let prefix = "\u{1b}[?1049h\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[?25l\u{1b}[1;1H";
-        assert_eq!(output, format!("{prefix}just a label"));
+        app.run(engine)?;
         Ok(())
     }
 

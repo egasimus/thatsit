@@ -218,7 +218,7 @@ mod test {
     #[test]
     fn tui_should_run () -> Result<()> {
         let app = String::from("just a label");
-        let (engine, sender) = TUI::harness();
+        let (mut engine, sender) = TUI::harness();
         engine.exit(); // run once then exit
         for key in "newline\n".chars() {
             let key = KeyEvent::new(KeyCode::Char(key), KeyModifiers::empty());
