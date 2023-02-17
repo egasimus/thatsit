@@ -8,7 +8,12 @@ pub struct ExampleComponent {
 }
 
 impl<W: Write> Input<TUI<W>, bool> for ExampleComponent {
-    fn handle (&mut self, input: &mut TUI<W>) -> Result<Option<bool>> {
+    fn handle (&mut self, engine: &mut TUI<W>) -> Result<Option<bool>> {
+        if let Some(TUIInputEvent::Key(key)) = engine.event {
+            if key.code == KeyCode::Char('q') {
+                engine.exit()?
+            }
+        }
         Ok(None)
     }
 }
@@ -25,7 +30,7 @@ impl<W: Write> Output<TUI<W>, [u16;2]> for ExampleComponent {
 fn main () -> Result<()> {
 
     let result = ExampleComponent {
-        label: "Enter some text to be stored".to_string(),
+        label: "Press Q to quit".to_string(),
         state: "".to_string()
     }.run(TUI::stdio()?)?;
 

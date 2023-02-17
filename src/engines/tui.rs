@@ -68,7 +68,7 @@ pub struct TUI<W: Write> {
     /// Input receiver. Receives input events from input thread.
     input: Receiver<TUIInputEvent>,
     /// Currently handled input event
-    event: Option<TUIInputEvent>,
+    pub event: Option<TUIInputEvent>,
     /// Output. Terminal commands are written to this.
     pub output: W,
     /// Currently available screen area.
@@ -85,6 +85,12 @@ impl<W: Write> TUI<W> {
     pub fn cleanup (&mut self) -> Result<()> {
         self.output.execute(ResetColor)?.execute(Show)?.execute(LeaveAlternateScreen)?;
         disable_raw_mode()?;
+        Ok(())
+    }
+
+    pub fn exit (&mut self) -> Result<()> {
+        self.exited.store(true, Ordering::Relaxed);
+        self.cleanup()?;
         Ok(())
     }
 
@@ -203,7 +209,6 @@ impl TUIHarness {
     }
 }
 
-
 #[cfg(test)]
 mod test {
 
@@ -214,7 +219,7 @@ mod test {
     fn tui_should_run () -> Result<()> {
         let app = String::from("just a label");
         let (engine, sender) = TUI::harness();
-        engine.exited.store(true, Ordering::Relaxed);
+        engine.exit(); // run once then exit
         for key in "newline\n".chars() {
             let key = KeyEvent::new(KeyCode::Char(key), KeyModifiers::empty());
             sender.send(TUIInputEvent::Key(key))?;
