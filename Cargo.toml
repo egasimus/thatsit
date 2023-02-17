@@ -1,5 +1,5 @@
 [package]
-name = "thatsit-core"
+name = "thatsit"
 version = "0.1.0"
 edition = "2021"
 
