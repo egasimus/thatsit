@@ -10,8 +10,17 @@ pub struct ExampleComponent {
 impl<W: Write> Input<TUI<W>, bool> for ExampleComponent {
     fn handle (&mut self, engine: &mut TUI<W>) -> Result<Option<bool>> {
         if let Some(TUIInputEvent::Key(key)) = engine.event {
-            if key.code == KeyCode::Char('q') {
-                engine.exit()?
+            match key.code {
+                KeyCode::Esc => {
+                    engine.exit()?;
+                },
+                KeyCode::Char(c) => {
+                    self.state.push(c);
+                }
+                KeyCode::Backspace => {
+                    self.state.pop();
+                }
+                _ => {}
             }
         }
         Ok(None)
@@ -20,9 +29,16 @@ impl<W: Write> Input<TUI<W>, bool> for ExampleComponent {
 
 impl<W: Write> Output<TUI<W>, [u16;2]> for ExampleComponent {
     fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
-        Stacked::y(|add|{
-            add(&self.label);
-            add(&self.state);
+        Stacked::x(|add|{
+            add("Press Esc to quit ");
+            add(Stacked::y(|add|{
+                add(&self.label);
+                add(&self.state);
+                add(Stacked::z(|add|{
+                    add("String");
+                    add(String::from("String"));
+                }));
+            }));
         }).render(engine)
     }
 }
@@ -30,8 +46,8 @@ impl<W: Write> Output<TUI<W>, [u16;2]> for ExampleComponent {
 fn main () -> Result<()> {
 
     let result = ExampleComponent {
-        label: "Press Q to quit".to_string(),
-        state: "".to_string()
+        label: "Enter some text:".to_string(),
+        state: "> ".to_string()
     }.run(TUI::stdio()?)?;
 
     Ok(())

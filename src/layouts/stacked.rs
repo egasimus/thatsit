@@ -38,3 +38,35 @@ impl<'a, T, U> Stacked<'a, T, U> {
     }
 
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{*, engines::tui::TUI, layouts::Stacked};
+
+    struct StackedWidget;
+
+    impl<W: std::io::Write> Output<TUI<W>, [u16;2]> for StackedWidget {
+
+        fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
+            Stacked::x(|add|{
+                add("String");
+                add(String::from("String"));
+                add(Stacked::y(|add|{
+                    add("String");
+                    add(String::from("String"));
+                    add(Stacked::z(|add|{
+                        add("String");
+                        add(String::from("String"));
+                    }));
+                }));
+            }).render(engine)
+        }
+
+    }
+
+    #[test]
+    fn should_stack () -> Result<()> {
+        let widget = StackedWidget;
+        Ok(())
+    }
+}
