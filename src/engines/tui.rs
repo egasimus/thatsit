@@ -3,18 +3,12 @@
 //! This platform renders an interface to a terminal
 //! using `crossterm`.
 
-use std::sync::mpsc::{channel, Receiver};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::Write;
-use std::thread::spawn;
-use std::time::Duration;
-use crate::{*, layouts::*};
+use crate::*;
 
 use ::crossterm::{
     ExecutableCommand,
     QueueableCommand,
     event::{
-        Event,
         poll,
         read
     },
@@ -42,84 +36,54 @@ use ::crossterm::{
 
 pub use crossterm::event::Event as TUIInputEvent;
 
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc::{channel, Receiver}};
+use std::io::Write;
+use std::thread::spawn;
+use std::time::Duration;
+
 /// Exit flag. Setting this to true terminates the main loop.
 static EXITED: AtomicBool = AtomicBool::new(false);
 
-/// An instance of an app hosted by crossterm.
-pub struct TUI<'a> {
-    terminal: Box<dyn Write + 'a>,
-    pub area: [u16; 4]
-}
+impl<W: Write, X: Input<TUIInputEvent, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
 
-impl<'a, X> Engine<TUI<'a>> for X
-where
-    X: Input<Event, bool> + Output<TUI<'a>, [u16;2]>
-{
-    fn done (&self) -> bool {
-        false
-    }
-    fn run (mut self, mut context: TUI<'a>) -> Result<Self> {
+    fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
         context.setup_output()?;
-        let rx = context.setup_input();
         let state = &mut self;
         loop {
-            if context.exited() {
-                break
-            }
-            // Respond to user input
+            // Render display
             if let Err(e) = state.render(&mut context) {
                 panic!("{e}");
                 // TODO error handling and graceful recovery
             }
-            // Render display
-            if let Err(e) = state.handle(rx.recv()?) {
+            // Respond to user input
+            if let Err(e) = state.handle(context.input.recv()?) {
                 panic!("{e}");
+                // TODO error handling and graceful recovery
             };
+            // Repeat until done
+            if context.exited() {
+                break
+            }
         }
-        Ok(self)
+        Ok(context)
     }
+
 }
 
-impl<'a> TUI<'a> {
+/// An instance of an app hosted by crossterm.
+#[derive(Debug)]
+pub struct TUI<W: Write> {
+    exited: Arc<AtomicBool>,
+    input:  Receiver<TUIInputEvent>,
+    output: W,
+    pub area: [u16; 4]
+}
 
-    /// Create a TUI context talking to the user over stdin/stdout
-    pub fn stdio () -> Self {
-        let input  = Box::new(std::io::stdin().lock());
-        let output = Box::new(std::io::stdout());
-        Self::new(output)
-    }
+impl<W: Write> TUI<W> {
 
-    /// Create a TUI context taking predefined input and rendering to string
-    pub fn harness (input: &'static [u8]) -> Self {
-        let input  = Box::new(std::io::BufReader::new(input));
-        let output = Box::new(vec![]);
-        Self::new(output)
-    }
-
-    pub fn new <T: Write + 'a> (output: T) -> Self {
-        Self {
-            area:     [0, 0, 0, 0],
-            terminal: Box::new(output),
-        }
-    }
-
-    /// Spawns the input thread, which passes input events over a `mpsc::channel` into the render
-    /// thread. Only stops when the exit flag is set.
-    fn setup_input (&self) -> Receiver<Event> {
-        let (tx, rx) = channel::<Event>();
-        spawn(move || {
-            loop {
-                if EXITED.fetch_and(true, Ordering::Relaxed) { break }
-                if poll(Duration::from_millis(100)).is_ok() {
-                    if tx.send(read().unwrap()).is_err() { break }
-                }
-            }
-        });
-        rx
-    }
 
     fn setup_output (&mut self) -> Result<()> {
-        self.terminal
+        self.output
             .execute(EnterAlternateScreen)?
             .execute(Hide)?;
         enable_raw_mode()?;
@@ -127,7 +91,7 @@ impl<'a> TUI<'a> {
     }
 
     fn clear (&mut self) -> Result<()> {
-        self.terminal
+        self.output
             .queue(ResetColor)?
             .queue(Clear(ClearType::All))?
             .queue(Hide)?;
@@ -138,10 +102,7 @@ impl<'a> TUI<'a> {
         EXITED.fetch_and(true, Ordering::Relaxed)
     }
 
-    fn render <O: Output<Self, [u16;2]>> (
-        &'a mut self,
-        output: &mut O
-    ) -> Result<()> {
+    fn render <O: Output<Self, [u16;2]>> (&mut self, output: &mut O) -> Result<()> {
         self.clear()?;
         let (w, h) = size()?;
         self.area = [0, 0, w, h];
@@ -149,7 +110,7 @@ impl<'a> TUI<'a> {
             self.write_error(format!("{error}").as_str())?;
         }
         // Flush output buffer
-        self.terminal
+        self.output
             .flush()
             .unwrap();
         Ok(())
@@ -157,7 +118,7 @@ impl<'a> TUI<'a> {
 
     fn cleanup (&mut self) -> Result<()> {
         // Clean up
-        self.terminal
+        self.output
             .execute(ResetColor)?
             .execute(Show)?
             .execute(LeaveAlternateScreen)?;
@@ -167,14 +128,14 @@ impl<'a> TUI<'a> {
 
     /// Write some text to the terminal.
     fn write_text (&mut self, x: u16, y: u16, text: &str) -> Result<()> {
-        self.terminal.execute(MoveTo(x, y))?.execute(Print(text))?;
+        self.output.execute(MoveTo(x, y))?.execute(Print(text))?;
         Ok(())
     }
 
     /// Write some red text to the terminal.
     fn write_error (&mut self, msg: &str) -> Result<()> {
         self.clear()?;
-        self.terminal.queue(SetForegroundColor(Color::Red))?;
+        self.output.queue(SetForegroundColor(Color::Red))?;
         self.write_text(0, 0, msg)
     }
 
@@ -185,27 +146,67 @@ impl<'a> TUI<'a> {
 
 }
 
+type TUIStdio = TUI<std::io::Stdout>;
+
+impl TUIStdio {
+    /// Create a TUI context talking to the user over stdin/stdout.
+    /// This spawns an input thread, which passes input events
+    /// over a `mpsc::channel` into the render thread.
+    /// Only stops when the exit flag is set.
+    pub fn stdio () -> Self {
+        let (tx, rx) = channel::<TUIInputEvent>();
+        let exited = Arc::new(AtomicBool::new(false));
+        let exit_input_thread = exited.clone();
+        spawn(move || {
+            loop {
+                if exit_input_thread.fetch_and(true, Ordering::Relaxed) {
+                    break
+                }
+                if poll(Duration::from_millis(100)).is_ok() {
+                    if tx.send(read().unwrap()).is_err() {
+                        break
+                    }
+                }
+            }
+        });
+        Self {
+            input:  rx,
+            output: std::io::stdout(),
+            area:   [0, 0, 0, 0],
+            exited: exited.clone(),
+        }
+    }
+}
+
+type TUIHarness = TUI<Vec<u8>>;
+
+impl TUIHarness {
+    /// Create a TUI context taking predefined input and rendering to string
+    pub fn harness (input: &'static [u8]) -> Self {
+        let input = Box::new(std::io::BufReader::new(input));
+        let (tx, rx) = channel::<TUIInputEvent>();
+        Self {
+            input:  rx,
+            output: vec![],
+            area:   [0, 0, 0, 0],
+            exited: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
 
-    use crate::{Engine, engines::tui::TUI};
+    use crate::{Engine, layouts::*, engines::tui::TUI};
+    use std::{error::Error, sync::atomic::Ordering};
 
     #[test]
-    fn tui_should_be_done () {
-        unimplemented!();
-        // FIXME: The "done" flag should be a value returned by the update method of the root widget?
-    }
-
-    #[test]
-    fn tui_should_run () {
+    fn tui_should_run () -> Result<(), Box<dyn Error>> {
         let app = "just a label";
         let engine = TUI::harness("newline\n".as_bytes());
-        if let Ok(result) = app.run(engine) {
-            assert_eq!(result, app);
-            assert_eq!(engine.terminal, "just a label".as_bytes());
-        } else {
-            panic!("running the repl engine failed")
-        }
+        engine.exited.store(true, Ordering::Relaxed);
+        assert_eq!(app.run(engine)?.output, "just a label".as_bytes());
+        Ok(())
     }
 
 }

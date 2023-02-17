@@ -187,7 +187,7 @@ impl<'a, T, U> Focus<Collected<'a, T, U>> for FocusStack<'a, T, U> {
 
 #[cfg(test)]
 mod test {
-    use crate::widgets::focus::*;
+    use crate::layouts::focus::*;
 
     //#[test]
     //fn should_maintain_focus_in_stack () {

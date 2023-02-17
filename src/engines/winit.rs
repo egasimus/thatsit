@@ -57,11 +57,8 @@ impl<'a, X> Engine<Winit> for X
 where
     X: Input<WinitEvent, bool> + Output<Winit, Vec<[f32;4]>>
 {
-    fn done (&self) -> bool {
-        false
-    }
 
-    fn run (mut self, mut context: Winit) -> Result<Self> {
+    fn run (mut self, mut context: Winit) -> Result<Winit> {
         let (display, events) = context.start()?;
         // Run main loop
         let state = &mut self;
@@ -130,7 +127,7 @@ where
             events.borrow_mut().dispatch(Some(Duration::from_millis(1)), &mut context)?;
         }
 
-        Ok(self)
+        Ok(context)
     }
 }
 

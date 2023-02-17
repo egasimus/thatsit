@@ -7,31 +7,31 @@ use crate::{
     }
 };
 
-use std::{io::{Error, ErrorKind}};
+use std::{io::{Write, Error, ErrorKind}};
 
 impl<S: AsRef<str>> Input<Event, bool> for S {
-    fn handle (&mut self, context: Event) -> Result<Option<bool>> {
+    fn handle (&mut self, _: Event) -> Result<Option<bool>> {
         // FIXME: render the string as a prompt
         Ok(None)
     }
 }
 
-impl<'a> Output<TUI<'a>, [u16;2]> for String {
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+impl<W: Write> Output<TUI<W>, [u16;2]> for String {
+    fn render (&self, _: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         // FIXME: render the string as a label
         Ok(Some([10, 10]))
     }
 }
 
-impl<'a> Output<TUI<'a>, [u16;2]> for &str {
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+impl<W: Write> Output<TUI<W>, [u16;2]> for &str {
+    fn render (&self, _: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         // FIXME: render the string as a label
         Ok(Some([10, 10]))
     }
 }
 
-impl<'a, W: Output<TUI<'a>, [u16;2]>> Output<TUI<'a>, [u16;2]> for Fixed<u16, W> {
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+impl<W: Write, O: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Fixed<u16, O> {
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         self.get().render(context.area(|area|match self {
             Self::X(width, _)            => [area.x(), area.y(), *width, area.h()],
             Self::Y(height, _)           => [area.x(), area.y(), area.w(), *height],
@@ -40,11 +40,8 @@ impl<'a, W: Output<TUI<'a>, [u16;2]>> Output<TUI<'a>, [u16;2]> for Fixed<u16, W>
     }
 }
 
-impl<'a, T> Output<TUI<'a>, [u16;2]> for Max<u16, T>
-where
-    T: Output<TUI<'a>, [u16;2]>
-{
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+impl<W: Write, T: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Max<u16, T> {
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         self.get().render(context.area(|area|match self {
             Self::X(max_width, _) => {
                 [area.x(), area.y(), area.w().max(*max_width), area.h()]
@@ -59,11 +56,8 @@ where
     }
 }
 
-impl<'a, T> Output<TUI<'a>, [u16;2]> for Min<u16, T>
-where
-    T: Output<TUI<'a>, [u16;2]>
-{
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+impl<W: Write, T: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Min<u16, T> {
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         self.get().render(context.area(|area|match self {
             Self::X(min_width, _) => [
                 area.x(), area.y(), area.w().min(*min_width), area.h()
@@ -78,11 +72,8 @@ where
     }
 }
 
-impl<'a, T> Output<TUI<'a>, [u16;2]> for Offset<u16, T>
-where
-    T: Output<TUI<'a>, [u16;2]>
-{
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+impl<W: Write, T: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Offset<u16, T> {
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         self.2.render(context.area(|area|[
             area.x() + self.0,
             area.y() + self.1,
@@ -91,8 +82,9 @@ where
         ]))
     }
 }
-impl<'a> Output<TUI<'a>, [u16;2]> for Stacked<'a, TUI<'a>, [u16;2]> {
-    fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+
+impl<'a, W: Write> Output<TUI<W>, [u16;2]> for Stacked<'a, TUI<W>, [u16;2]> {
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         let mut x = 0;
         let mut y = 0;
         match self.0 {
@@ -125,7 +117,7 @@ impl<'a> Output<TUI<'a>, [u16;2]> for Stacked<'a, TUI<'a>, [u16;2]> {
     }
 }
 
-impl<'a> Stacked<'a, TUI<'a>, [u16;2]> {
+impl<'a, W: Write> Stacked<'a, TUI<W>, [u16;2]> {
     /// Return an error if this area is larger than the minimum needed size
     pub fn expect_min (&self, area: &impl Rect<u16>, min: [u16; 2]) -> std::io::Result<&Self> {
         let [min_w, min_h] = min;
@@ -140,13 +132,13 @@ impl<'a> Stacked<'a, TUI<'a>, [u16;2]> {
 
 #[cfg(test)]
 mod test {
-    use crate::{*, engines::tui::TUI, widgets::stacked::Stacked};
+    use crate::{*, engines::tui::TUI, layouts::Stacked};
 
     struct StackedWidget;
 
-    impl<'a> Output<TUI<'a>, [u16;2]> for StackedWidget {
+    impl<W: std::io::Write> Output<TUI<W>, [u16;2]> for StackedWidget {
 
-        fn render (&self, context: &mut TUI<'a>) -> Result<Option<[u16;2]>> {
+        fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
             Stacked::x(|add|{
                 add("String");
                 add(String::from("String"));

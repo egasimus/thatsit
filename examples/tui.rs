@@ -1,4 +1,5 @@
-use thatsit_core::{*, engines::tui::*};
+use thatsit_core::{*, layouts::*, engines::tui::*};
+use std::io::Write;
 
 #[derive(Debug)]
 pub struct ExampleComponent {
@@ -6,15 +7,18 @@ pub struct ExampleComponent {
     state: String
 }
 
-impl Input<CrosstermInputEvent, bool> for ExampleComponent {
-    fn handle (&mut self, input: CrosstermInputEvent) -> Result<Option<bool>> {
+impl Input<TUIInputEvent, bool> for ExampleComponent {
+    fn handle (&mut self, input: TUIInputEvent) -> Result<Option<bool>> {
         Ok(None)
     }
 }
 
-impl<'a> Output<Crossterm<'a>, [u16;2]> for ExampleComponent {
-    fn render (&self, context: &mut Crossterm<'a>) -> Result<Option<[u16;2]>> {
-        Ok(Some([10, 10]))
+impl<W: Write> Output<TUI<W>, [u16;2]> for ExampleComponent {
+    fn render (&self, context: &mut TUI<W>) -> Result<Option<[u16;2]>> {
+        Stacked::y(|add|{
+            add(&self.label);
+            add(&self.state);
+        }).render(context)
     }
 }
 
@@ -23,9 +27,7 @@ fn main () -> Result<()> {
     let result = ExampleComponent {
         label: "Enter some text to be stored".to_string(),
         state: "".to_string()
-    }.run(
-        Crossterm::new(std::io::stdout())
-    )?;
+    }.run(TUI::stdio())?;
 
     Ok(())
 

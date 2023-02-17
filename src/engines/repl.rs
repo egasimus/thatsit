@@ -4,16 +4,13 @@
 //! as a series of question/answer prompts.
 
 use crate::*;
-use std::io::{Stdin, Stdout, Read, Write, BufRead};
+use std::io::{Stdout, Write, BufRead};
 
-impl<'a, X, I: BufRead, O: Write> Engine<Repl<I, O>> for X
+impl<'a, X, R: BufRead, W: Write> Engine<Repl<R, W>> for X
 where
     X: Input<String, String> + Output<String, ()>
 {
-    fn done (&self) -> bool {
-        true
-    }
-    fn run (mut self, mut context: Repl<I, O>) -> Result<Self> {
+    fn run (mut self, mut context: Repl<R, W>) -> Result<Repl<R, W>> {
         let state = &mut self;
         loop {
             let mut output_data = String::new();
@@ -26,13 +23,14 @@ where
                 break
             }
         }
-        Ok(self)
+        Ok(context)
     }
 }
 
-pub struct Repl<I, O> {
-    input:  I,
-    output: O
+#[derive(Debug, PartialEq, Eq)]
+pub struct Repl<R, W> {
+    input:  R,
+    output: W
 }
 
 impl Repl<std::io::StdinLock<'static>, Stdout> {
@@ -63,27 +61,14 @@ pub type ReplHarness = Repl<std::io::BufReader<&'static [u8]>, Vec<u8>>;
 mod test {
 
     use crate::{Engine, engines::repl::ReplHarness};
-    use std::io::BufReader;
+    use std::{error::Error, io::BufReader};
 
     #[test]
-    fn repl_should_be_done () {
-        let app = "just a label";
-        assert_eq!(Engine::<ReplHarness>::done(&app), true);
-        // FIXME: The "done" flag should be a value returned by the update method of the root widget?
-    }
-
-    #[test]
-    fn repl_should_run () {
+    fn repl_should_run () -> Result<(), Box<dyn Error>> {
         let app = "just a label";
         let engine = ReplHarness::harness("newline\n".as_bytes());
-        if let Ok(result) = app.run(engine) {
-            assert_eq!(result, app);
-            assert_eq!(engine.output, "just a label".as_bytes());
-        } else {
-            panic!("running the repl engine failed")
-        }
-        // FIXME: Here stdin and stdout should be replaced with general streams that just happen to
-        // default to stdio; and in the test, input/output buffers should be passed.
+        assert_eq!(app.run(engine)?.output, "just a label".as_bytes());
+        Ok(())
     }
 
 }

@@ -7,8 +7,7 @@ pub mod widgets;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 pub trait Engine<T> {
-    fn run (self, context: T) -> Result<Self> where Self: Sized;
-    fn done (&self) -> bool;
+    fn run (self, context: T) -> Result<T>;
 }
 
 pub trait Input<T, U> {
@@ -136,12 +135,9 @@ mod test {
         }
     }
 
-    impl<'a, X: Input<(), ()> + Output<(), ()>> Engine<&mut ()> for X {
-        fn done (&self) -> bool {
-            true
-        }
-        fn run (self, context: &mut ()) -> Result<Self> {
-            Ok(self)
+    impl<'a, X: Input<(), ()> + Output<(), ()>> Engine<()> for X {
+        fn run (self, context: ()) -> Result<()> {
+            Ok(context)
         }
     }
 
@@ -150,7 +146,7 @@ mod test {
         let mut app = NullWidget;
         app.handle(())?;
         app.render(&mut ())?;
-        app.run(&mut ())?;
+        app.run(())?;
         Ok(())
     }
 
