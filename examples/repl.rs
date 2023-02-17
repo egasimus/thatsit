@@ -9,9 +9,9 @@ pub struct ExampleComponent {
 }
 
 impl Input<String, String> for ExampleComponent {
-    fn handle (&mut self, input: String) -> Result<Option<String>> {
+    fn handle (&mut self, input: &mut String) -> Result<Option<String>> {
         self.state = input.clone();
-        Ok(Some(input))
+        Ok(None)
     }
 }
 

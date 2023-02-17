@@ -11,7 +11,7 @@ pub trait Engine<T> {
 }
 
 pub trait Input<T, U> {
-    fn handle (&mut self, context: T) -> Result<Option<U>>;
+    fn handle (&mut self, engine: &mut T) -> Result<Option<U>>;
 }
 
 pub trait Proxy<T> {
@@ -20,8 +20,8 @@ pub trait Proxy<T> {
 }
 
 impl<T, U, V: Input<T, U>> Input<T, U> for dyn Proxy<V> {
-    fn handle (&mut self, context: T) -> Result<Option<U>> {
-        self.get_mut().handle(context)
+    fn handle (&mut self, engine: &mut T) -> Result<Option<U>> {
+        self.get_mut().handle(engine)
     }
 }
 
@@ -125,7 +125,7 @@ mod test {
     struct NullWidget;
 
     impl Input<(), ()> for NullWidget {
-        fn handle (&mut self, context: ()) -> Result<Option<()>> {
+        fn handle (&mut self, context: &mut ()) -> Result<Option<()>> {
             Ok(Some(()))
         }
     }
@@ -144,7 +144,7 @@ mod test {
     #[test]
     fn should_run () -> Result<()> {
         let mut app = NullWidget;
-        app.handle(())?;
+        app.handle(&mut ())?;
         app.render(&mut ())?;
         app.run(())?;
         Ok(())

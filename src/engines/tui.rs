@@ -46,13 +46,13 @@ use std::io::Write;
 use std::thread::spawn;
 use std::time::Duration;
 
-impl<W: Write, X: Input<TUIInputEvent, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
+impl<W: Write, X: Input<TUI<W>, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
     fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
         context.setup()?;
         loop {
             context.render(&self)?;     // Render display
             context.handle(&mut self)?; // Respond to user input
-            if context.exited() { // Repeat until done
+            if context.exited() {       // Repeat until done
                 break
             }
         }
@@ -67,6 +67,8 @@ pub struct TUI<W: Write> {
     exited: Arc<AtomicBool>,
     /// Input receiver. Receives input events from input thread.
     input: Receiver<TUIInputEvent>,
+    /// Currently handled input event
+    event: Option<TUIInputEvent>,
     /// Output. Terminal commands are written to this.
     pub output: W,
     /// Currently available screen area.
@@ -102,8 +104,9 @@ impl<W: Write> TUI<W> {
         Ok(())
     }
 
-    fn handle (&mut self, widget: &mut impl Input<TUIInputEvent, bool>) -> Result<()> {
-        widget.handle(self.input.recv()?)?;
+    fn handle (&mut self, widget: &mut impl Input<Self, bool>) -> Result<()> {
+        self.event = Some(self.input.recv()?);
+        widget.handle(self)?;
         Ok(())
     }
 
@@ -159,7 +162,7 @@ impl TUIStdio {
                 }
             }
         });
-        Ok(Self { exited, input, output, area: [0, 0, 0, 0] })
+        Ok(Self { exited, input, event: None, output, area: [0, 0, 0, 0] })
     }
 
 }
@@ -172,9 +175,34 @@ impl TUIHarness {
         let output = vec![];
         let exited = Arc::new(AtomicBool::new(false));
         let (tx, input) = channel::<TUIInputEvent>();
-        (Self { exited, input, output, area: [0, 0, 0, 0] }, tx)
+        (Self { exited, input, event: None, output, area: [0, 0, 0, 0] }, tx)
     }
 }
+
+/// Match an input event against a specified key event
+#[macro_export] macro_rules! if_key {
+    ($event:expr => $code:ident => $block:block) => {
+        if $event == &key!($code) {
+            $block
+        } else {
+            false
+        }
+    }
+}
+
+/// Match an input event against a list of key events
+#[macro_export] macro_rules! match_key {
+    (($event:expr) { $($code:expr => $block:block),+ }) => {
+        {
+            if let Event::Key(event) = $event {
+                $(if event.code == $code $block else)* { false }
+            } else {
+                false
+            }
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod test {
