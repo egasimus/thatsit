@@ -34,38 +34,30 @@ use ::crossterm::{
     },
 };
 
-pub use crossterm::event::Event as TUIInputEvent;
+pub use crossterm::event::{
+    Event as TUIInputEvent,
+    KeyEvent,
+    KeyCode,
+    KeyModifiers
+};
 
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc::{channel, Receiver}};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc::{channel, Sender, Receiver}};
 use std::io::Write;
 use std::thread::spawn;
 use std::time::Duration;
 
 impl<W: Write, X: Input<TUIInputEvent, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
-
     fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
-
         context.setup()?;
-
         loop {
-            // Render display
-            context.render(&self)?;
-
-            // Respond to user input
-            if let Err(e) = self.handle(context.input.recv()?) {
-                panic!("{e}");
-                // TODO error handling and graceful recovery
-            };
-
-            // Repeat until done
-            if context.exited() {
+            context.render(&self)?;     // Render display
+            context.handle(&mut self)?; // Respond to user input
+            if context.exited() { // Repeat until done
                 break
             }
         }
-
         Ok(context)
     }
-
 }
 
 /// An instance of an app hosted by crossterm.
@@ -107,6 +99,11 @@ impl<W: Write> TUI<W> {
         }
         // Flush output buffer
         self.output.flush()?;
+        Ok(())
+    }
+
+    fn handle (&mut self, widget: &mut impl Input<TUIInputEvent, bool>) -> Result<()> {
+        widget.handle(self.input.recv()?)?;
         Ok(())
     }
 
@@ -171,27 +168,32 @@ type TUIHarness = TUI<Vec<u8>>;
 
 impl TUIHarness {
     /// Create a TUI context that takes predefined input and renders to a buffer
-    pub fn harness (input: &'static [u8]) -> Self {
+    pub fn harness () -> (Self, Sender<TUIInputEvent>) {
         let output = vec![];
         let exited = Arc::new(AtomicBool::new(false));
-        let input = Box::new(std::io::BufReader::new(input));
         let (tx, input) = channel::<TUIInputEvent>();
-        Self { exited, input, output, area: [0, 0, 0, 0] }
+        (Self { exited, input, output, area: [0, 0, 0, 0] }, tx)
     }
 }
 
 #[cfg(test)]
 mod test {
 
-    use crate::{Engine, layouts::*, engines::tui::TUI};
+    use crate::{Engine, layouts::*, engines::tui::*};
     use std::{error::Error, sync::atomic::Ordering};
 
     #[test]
-    fn tui_should_run () -> Result<(), Box<dyn Error>> {
+    fn tui_should_run () -> Result<()> {
         let app = String::from("just a label");
-        let engine = TUI::harness("newline\n".as_bytes());
+        let (engine, sender) = TUI::harness();
         engine.exited.store(true, Ordering::Relaxed);
-        assert_eq!(app.run(engine)?.output, "just a label".as_bytes());
+        for key in "newline\n".chars() {
+            let key = KeyEvent::new(KeyCode::Char(key), KeyModifiers::empty());
+            sender.send(TUIInputEvent::Key(key))?;
+        }
+        let output = String::from_utf8(app.run(engine)?.output)?;
+        let prefix = "\u{1b}[?1049h\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[?25l\u{1b}[1;1H";
+        assert_eq!(output, format!("{prefix}just a label"));
         Ok(())
     }
 
