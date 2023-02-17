@@ -44,12 +44,10 @@ use smithay::{
 use winit::{
     dpi::{LogicalSize, LogicalPosition},
     event::{MouseButton, MouseScrollDelta, Event, WindowEvent, ElementState, KeyboardInput, Touch, TouchPhase},
-    event_loop::{ControlFlow, EventLoop as WinitEventLoop},
-    platform::unix::WindowExtUnix,
+    event_loop::{ControlFlow, EventLoopBuilder, EventLoop},
+    platform::{unix::{WindowExtUnix, EventLoopBuilderExtUnix}, run_return::EventLoopExtRunReturn},
     window::{WindowId, WindowBuilder, Window as WinitWindow},
 };
-
-use smithay::reexports::winit::platform::run_return::EventLoopExtRunReturn;
 
 pub type Unit = f32;
 
@@ -76,7 +74,7 @@ pub struct Winit {
     running:       Arc<AtomicBool>,
     started:       Cell<Option<Instant>>,
     windows:       Rc<RefCell<HashMap<WindowId, WinitHostWindow>>>,
-    winit_events:  Rc<RefCell<WinitEventLoop<()>>>,
+    events:        Rc<RefCell<EventLoop<()>>>,
     egl_context:   smithay::backend::egl::EGLContext,
     egl_display:   smithay::backend::egl::display::EGLDisplay,
     renderer:      Rc<RefCell<smithay::backend::renderer::gles2::Gles2Renderer>>,
@@ -84,8 +82,16 @@ pub struct Winit {
 
 impl Winit {
 
+    pub fn new () -> Result<Self> {
+        Self::init(EventLoop::new())
+    }
+
+    pub fn harness () -> Result<Self> {
+        Self::init(EventLoopBuilder::new().with_any_thread(true).build())
+    }
+
     /// Initialize winit engine
-    fn new () -> Result<Self> {
+    fn init (events: EventLoop<()>) -> Result<Self> {
 
         // Create the logger
         let fused = slog_async::Async::default(slog_term::term_full().fuse()).fuse();
@@ -95,15 +101,12 @@ impl Winit {
         debug!(&logger, "Logger initialized");
         debug!(&logger, "Starting Winit engine");
 
-        // Create the Winit event loop
-        let winit_events = WinitEventLoop::new();
-
         // Create a null window to host the EGLDisplay
         let window = std::sync::Arc::new(WindowBuilder::new()
             .with_inner_size(LogicalSize::new(16, 16))
             .with_title("Charlie Null")
             .with_visible(false)
-            .build(&winit_events)?);
+            .build(&events)?);
 
         // Create the EGL context and renderer
         let egl_display = EGLDisplay::new(window, logger.clone()).unwrap();
@@ -113,13 +116,13 @@ impl Winit {
         let mut renderer = make_renderer(&logger, &egl_context)?;
 
         Ok(Self {
-            logger:        logger.clone(),
+            logger: logger.clone(),
             log_guard,
-            renderer:      Rc::new(RefCell::new(renderer)),
-            winit_events:  Rc::new(RefCell::new(winit_events)),
-            windows:       Rc::new(RefCell::new(HashMap::new())),
-            running:       Arc::new(AtomicBool::new(true)),
-            started:       Cell::new(None),
+            renderer: Rc::new(RefCell::new(renderer)),
+            events:   Rc::new(RefCell::new(events)),
+            windows:  Rc::new(RefCell::new(HashMap::new())),
+            running:  Arc::new(AtomicBool::new(true)),
+            started:  Cell::new(None),
             egl_display,
             egl_context,
         })
@@ -164,8 +167,8 @@ impl Winit {
     fn handle (&mut self, app: &mut impl Input<WinitEvent, bool>) -> Result<()> {
         if let Err(e) = {
             let mut closed = false;
-            let winit_events = self.winit_events.clone();
-            winit_events.borrow_mut().run_return(|event, _target, control_flow| {
+            let events = self.events.clone();
+            events.borrow_mut().run_return(|event, _target, control_flow| {
                 //debug!(self.logger, "{target:?}");
                 match event {
                     Event::RedrawEventsCleared => {
@@ -372,7 +375,7 @@ impl Winit {
     ) -> Result<()> {
         let window = WinitHostWindow::new(
             &self.logger,
-            &self.winit_events.borrow(),
+            &self.events.borrow(),
             &make_context(&self.logger, &self.egl_context)?,
             &format!("Output {screen}"),
             width,
@@ -461,7 +464,7 @@ impl<'a> WinitHostWindow {
     /// Create a new host window
     pub fn new (
         logger: &slog::Logger,
-        events: &WinitEventLoop<()>,
+        events: &EventLoop<()>,
         egl:    &EGLContext,
         title:  &str,
         width:  i32,
@@ -515,7 +518,7 @@ impl<'a> WinitHostWindow {
     /// Build the window
     fn build (
         logger: &slog::Logger,
-        events: &WinitEventLoop<()>,
+        events: &EventLoop<()>,
         title:  &str,
         width:  i32,
         height: i32
@@ -598,7 +601,7 @@ mod test {
     #[test]
     fn winit_should_run () -> Result<()> {
         let app = String::from("just a label");
-        let engine = Winit::new()?;
+        let engine = Winit::harness()?;
         engine.exit(); // run once then exit
         app.run(engine)?;
         Ok(())
