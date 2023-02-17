@@ -82,7 +82,7 @@ pub type ReplHarness = Repl<std::io::BufReader<&'static [u8]>, Vec<u8>>;
 #[cfg(test)]
 mod test {
 
-    use crate::{Engine, engines::repl::*};
+    use crate::{*, engines::repl::*};
     use std::{error::Error, io::BufReader};
 
     #[test]

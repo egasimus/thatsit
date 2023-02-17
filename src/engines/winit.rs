@@ -4,7 +4,7 @@
 
 use crate::{*, layouts::*};
 
-use slog::{debug, warn, crit};
+use slog::{Drain, debug, warn, crit};
 
 use std::{
     rc::Rc,
@@ -57,85 +57,23 @@ impl<'a, X> Engine<Winit> for X
 where
     X: Input<WinitEvent, bool> + Output<Winit, Vec<[f32;4]>>
 {
-
     fn run (mut self, mut context: Winit) -> Result<Winit> {
-        let (display, events) = context.start()?;
-        // Run main loop
-        let state = &mut self;
+        context.setup();
         loop {
-            if !context.running.fetch_and(true, Ordering::Relaxed) {
+            context.render(&self)?;     // Render display
+            context.handle(&mut self)?; // Respond to user input
+            if context.exited() {       // Repeat until done
                 break
             }
-
-            // Dispatch input events from each host window to the app.
-            if let Err(e) = {
-
-                let mut closed = false;
-                let started      = &context.started.get().unwrap();
-                let logger       = context.logger.clone();
-                let winit_events = context.winit_events.clone();
-                winit_events.borrow_mut().run_return(|event, _target, control_flow| {
-                    //debug!(self.logger, "{target:?}");
-                    match event {
-                        Event::RedrawEventsCleared => {
-                            *control_flow = ControlFlow::Exit;
-                        }
-                        Event::RedrawRequested(_id) => {
-                            //callback(0, WinitEvent::Refresh);
-                        }
-                        Event::WindowEvent { window_id, event } => {
-                            closed = context.window_event(&window_id, event)
-                        }
-                        _ => {}
-                    }
-                });
-
-                if closed {
-                    Err::<(), WinitHostError>(WinitHostError::WindowClosed.into())
-                } else {
-                    Ok::<(), WinitHostError>(())
-                }
-
-            } {
-                crit!(context.logger, "Update error: {e}");
-                break
-            }
-
-            // Render the app to each host window
-            if let Err(e) = {
-                let windows = context.windows.clone();
-                for (_, output) in windows.borrow().iter() {
-                    if let Some(size) = output.resized.take() {
-                        output.surface.resize(size.w, size.h, 0, 0);
-                    }
-                    context.renderer().bind(output.surface.clone())?;
-                    let size = output.surface.get_size().unwrap();
-                    //self.render(&output.output, &size, output.screen)?;
-                    self.render(&mut context)?;
-                    output.surface.swap_buffers(None)?;
-                }
-                Ok::<(), Box<dyn std::error::Error>>(())
-            } {
-                crit!(context.logger, "Render error: {e}");
-                break
-            }
-
-            // Flush display/client messages
-            display.borrow_mut().flush_clients()?;
-
-            // Dispatch state to next event loop tick
-            events.borrow_mut().dispatch(Some(Duration::from_millis(1)), &mut context)?;
         }
-
         Ok(context)
     }
 }
 
 pub struct Winit {
     logger:        slog::Logger,
+    log_guard:     slog_scope::GlobalLoggerGuard,
     running:       Arc<AtomicBool>,
-    display:       Rc<RefCell<smithay::reexports::wayland_server::Display<Self>>>,
-    events:        Rc<RefCell<smithay::reexports::calloop::EventLoop<'static, Self>>>,
     started:       Cell<Option<Instant>>,
     windows:       Rc<RefCell<HashMap<WindowId, WinitHostWindow>>>,
     winit_events:  Rc<RefCell<WinitEventLoop<()>>>,
@@ -147,15 +85,15 @@ pub struct Winit {
 impl Winit {
 
     /// Initialize winit engine
-    fn new (logger: &slog::Logger) -> Result<Self> {
+    fn new () -> Result<Self> {
 
-        debug!(logger, "Starting Winit engine");
-
-        // Create the event loop
-        let events = smithay::reexports::calloop::EventLoop::try_new()?;
-
-        // Create the display
-        let display = smithay::reexports::wayland_server::Display::new()?;
+        // Create the logger
+        let fused = slog_async::Async::default(slog_term::term_full().fuse()).fuse();
+        let logger = slog::Logger::root(fused, slog::o!(),);
+        let log_guard = slog_scope::set_global_logger(logger.clone());
+        slog_stdlog::init().expect("Could not setup log backend");
+        debug!(&logger, "Logger initialized");
+        debug!(&logger, "Starting Winit engine");
 
         // Create the Winit event loop
         let winit_events = WinitEventLoop::new();
@@ -167,22 +105,17 @@ impl Winit {
             .with_visible(false)
             .build(&winit_events)?);
 
-        // Create the renderer and EGL context
+        // Create the EGL context and renderer
         let egl_display = EGLDisplay::new(window, logger.clone()).unwrap();
-
         let egl_context = EGLContext::new_with_config(&egl_display, GlAttributes {
             version: (3, 0), profile: None, vsync: true, debug: cfg!(debug_assertions),
         }, Default::default(), logger.clone())?;
-
-        let mut renderer = make_renderer(logger, &egl_context)?;
-
-        renderer.bind_wl_display(&display.handle())?;
+        let mut renderer = make_renderer(&logger, &egl_context)?;
 
         Ok(Self {
             logger:        logger.clone(),
+            log_guard,
             renderer:      Rc::new(RefCell::new(renderer)),
-            display:       Rc::new(RefCell::new(display)),
-            events:        Rc::new(RefCell::new(events)),
             winit_events:  Rc::new(RefCell::new(winit_events)),
             windows:       Rc::new(RefCell::new(HashMap::new())),
             running:       Arc::new(AtomicBool::new(true)),
@@ -190,53 +123,71 @@ impl Winit {
             egl_display,
             egl_context,
         })
+
     }
 
-    fn start (&mut self) -> Result<(
-        Rc<RefCell<smithay::reexports::wayland_server::Display<Self>>>,
-        Rc<RefCell<smithay::reexports::calloop::EventLoop<'static, Self>>>
-    )> {
-        //self.start_wayland()?;
+    fn setup (&mut self) {
         self.started.set(Some(Instant::now()));
-        Ok((self.display.clone(), self.events.clone()))
     }
 
-    fn start_wayland (&mut self) -> Result<()> {
-        //// Listen for events
-        //let display = self.display.clone();
-        //let fd = display.borrow_mut().backend().poll_fd().as_raw_fd();
-        //self.events.borrow().handle().insert_source(
-            //Generic::new(fd, Interest::READ, Mode::Level),
-            //move |_, _, state| {
-                //display.borrow_mut().dispatch_clients(state)?;
-                //Ok(PostAction::Continue)
-            //}
-        //)?;
-
-        //// Create a socket and listen for new clients
-        //let socket = ListeningSocketSource::new_auto(self.logger.clone()).unwrap();
-        //let socket_name = socket.socket_name().to_os_string();
-        //let socket_logger  = self.logger.clone();
-        //let mut socket_display = self.display.borrow().handle();
-        //self.events.borrow().handle().insert_source(
-            //socket,
-            //move |client, _, _| {
-                //debug!(socket_logger, "New client {client:?}");
-                //socket_display.insert_client(
-                    //client.try_clone().expect("Could not clone socket for engine dispatcher"),
-                    //Arc::new(ClientState)
-                //).expect("Could not insert client in engine display");
-            //}
-        //)?;
-
-        //// Export connection
-        //std::env::set_var("WAYLAND_DISPLAY", &socket_name);
-
-        Ok(())
+    fn exited (&self) -> bool {
+        !self.running.fetch_and(true, Ordering::Relaxed)
     }
 
-    fn logger (&self) -> slog::Logger {
-        self.logger.clone()
+    /// For each host window, render the corresponding view of the app
+    fn render (&mut self, app: &impl Output<Winit, Vec<[f32;4]>>) -> Result<()> {
+        if let Err(e) = {
+            let windows = self.windows.clone();
+            for (_, output) in windows.borrow().iter() {
+                if let Some(size) = output.resized.take() {
+                    output.surface.resize(size.w, size.h, 0, 0);
+                }
+                self.renderer().bind(output.surface.clone())?;
+                let size = output.surface.get_size().unwrap();
+                //self.render(&output.output, &size, output.screen)?;
+                app.render(self)?;
+                output.surface.swap_buffers(None)?;
+            }
+            Ok(())
+        } {
+            crit!(self.logger, "Render error: {e}");
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn handle (&mut self, app: &mut impl Input<WinitEvent, bool>) -> Result<()> {
+        if let Err(e) = {
+            let mut closed = false;
+            let winit_events = self.winit_events.clone();
+            winit_events.borrow_mut().run_return(|event, _target, control_flow| {
+                //debug!(self.logger, "{target:?}");
+                match event {
+                    Event::RedrawEventsCleared => {
+                        *control_flow = ControlFlow::Exit;
+                    }
+                    Event::RedrawRequested(_id) => {
+                        //callback(0, WinitEvent::Refresh);
+                    }
+                    Event::WindowEvent { window_id, event } => {
+                        closed = self.window_event(&window_id, event)
+                    }
+                    _ => {}
+                }
+            });
+
+            if closed {
+                Err(WinitHostError::WindowClosed.into())
+            } else {
+                Ok(())
+            }
+        } {
+            crit!(self.logger, "Update error: {e}");
+            Err(e)
+        } else {
+            Ok(())
+        }
     }
 
     fn renderer (&self) -> RefMut<smithay::backend::renderer::gles2::Gles2Renderer> {
@@ -647,4 +598,27 @@ mod test {
         //assert_eq!(app.run(engine)?.output, "just a label".as_bytes());
         //Ok(())
     //}
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{*, layouts::*, engines::winit::*};
+    use std::{error::Error, sync::atomic::Ordering};
+
+    #[test]
+    fn tui_should_run () -> Result<()> {
+        let app = String::from("just a label");
+        let (engine, sender) = Winit::harness();
+        engine.exit(); // run once then exit
+        for key in "newline\n".chars() {
+            let key = KeyEvent::new(KeyCode::Char(key), KeyModifiers::empty());
+            sender.send(TUIInputEvent::Key(key))?;
+        }
+        let output = String::from_utf8(app.run(engine)?.output)?;
+        let prefix = "\u{1b}[?1049h\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[?25l\u{1b}[1;1H";
+        assert_eq!(output, format!("{prefix}just a label"));
+        Ok(())
+    }
+
 }
