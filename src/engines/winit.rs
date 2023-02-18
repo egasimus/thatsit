@@ -10,10 +10,8 @@ use std::{
     rc::Rc,
     cell::{Cell, RefCell, RefMut},
     sync::{Arc, atomic::{AtomicBool, Ordering}},
-    time::{Instant, Duration},
+    time::{Instant},
     collections::HashMap,
-    os::fd::AsRawFd,
-    //marker::PhantomData
 };
 
 use smithay::{
@@ -25,20 +23,10 @@ use smithay::{
             context::GlAttributes,
             display::EGLDisplay
         },
-        renderer::{ImportEgl, Bind},
+        renderer::{Bind},
         winit::{WindowSize, WinitVirtualDevice,}
     },
-    //backend::{
-        //input::{
-            //InputEvent,
-        //},
-    //},
-    //reexports::{
-    //},
     utils::{Size, Physical}
-    ////wayland::socket::ListeningSocketSource,
-    ////reexports::wayland_server::backend::{ClientId, ClientData, DisconnectReason},
-    ////reexports::calloop::{PostAction, Interest, Mode, generic::Generic}
 };
 
 use winit::{
@@ -70,7 +58,7 @@ where
 
 pub struct Winit {
     logger:        slog::Logger,
-    log_guard:     slog_scope::GlobalLoggerGuard,
+    _log_guard:    slog_scope::GlobalLoggerGuard,
     running:       Arc<AtomicBool>,
     started:       Cell<Option<Instant>>,
     windows:       Rc<RefCell<HashMap<WindowId, WinitHostWindow>>>,
@@ -113,11 +101,11 @@ impl Winit {
         let egl_context = EGLContext::new_with_config(&egl_display, GlAttributes {
             version: (3, 0), profile: None, vsync: true, debug: cfg!(debug_assertions),
         }, Default::default(), logger.clone())?;
-        let mut renderer = make_renderer(&logger, &egl_context)?;
+        let renderer = make_renderer(&logger, &egl_context)?;
 
         Ok(Self {
             logger: logger.clone(),
-            log_guard,
+            _log_guard: log_guard,
             renderer: Rc::new(RefCell::new(renderer)),
             events:   Rc::new(RefCell::new(events)),
             windows:  Rc::new(RefCell::new(HashMap::new())),
@@ -133,11 +121,11 @@ impl Winit {
         self.started.set(Some(Instant::now()));
     }
 
-    fn exit (&self) {
+    pub fn exit (&self) {
         self.running.store(false, Ordering::Relaxed)
     }
 
-    fn exited (&self) -> bool {
+    pub fn exited (&self) -> bool {
         !self.running.fetch_and(true, Ordering::Relaxed)
     }
 
@@ -366,12 +354,12 @@ impl Winit {
         }
     }
 
-    fn input_added (&mut self, name: &str) -> Result<()> {
+    pub fn input_added (&mut self, _name: &str) -> Result<()> {
         Ok(())
     }
 
-    fn output_added (
-        &mut self, name: &str, screen: usize, width: i32, height: i32
+    pub fn output_added (
+        &mut self, _name: &str, screen: usize, width: i32, height: i32
     ) -> Result<()> {
         let window = WinitHostWindow::new(
             &self.logger,
