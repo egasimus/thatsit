@@ -1,7 +1,6 @@
 //! Render widgets next to each other
 
 use crate::*;
-use super::*;
 
 pub struct Columns<'a, T, U>(pub(crate) Vec<Collected<'a, T, U>>);
 

@@ -21,15 +21,3 @@ impl<'a, X: Input<(), ()> + Output<(), ()>> MainLoop<()> for X {
         Ok(())
     }
 }
-
-impl Output<(), ()> for String {
-    fn render (&self, _: &mut ()) -> Result<Option<()>> {
-        Ok(Some(()))
-    }
-}
-
-impl Output<(), ()> for &str {
-    fn render (&self, _: &mut ()) -> Result<Option<()>> {
-        Ok(Some(()))
-    }
-}
