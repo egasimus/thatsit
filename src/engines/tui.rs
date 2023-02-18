@@ -14,6 +14,7 @@ use ::crossterm::{
     style::{
         ResetColor,
         SetForegroundColor,
+        SetBackgroundColor,
         Color,
         Print
     },
@@ -122,16 +123,27 @@ impl<W: Write> TUI<W> {
     }
 
     /// Write some text to the terminal.
-    pub fn put (&mut self, x: u16, y: u16, text: &str) -> Result<()> {
+    pub fn put (&mut self, x: u16, y: u16, text: &impl std::fmt::Display) -> Result<&mut Self> {
         self.output.queue(MoveTo(x, y))?.queue(Print(text))?;
-        Ok(())
+        Ok(self)
+    }
+
+    pub fn set_colors (&mut self, fg: &Option<Color>, bg: &Option<Color>) -> Result<&mut Self> {
+        self.output.queue(ResetColor)?;
+        if let Some(fg) = fg {
+            self.output.queue(SetForegroundColor(*fg))?;
+        }
+        if let Some(bg) = bg {
+            self.output.queue(SetBackgroundColor(*bg))?;
+        }
+        Ok(self)
     }
 
     /// Write some red text to the terminal.
-    fn write_error (&mut self, msg: &str) -> Result<()> {
+    fn write_error (&mut self, msg: &str) -> Result<&mut Self> {
         self.clear()?;
         self.output.queue(SetForegroundColor(Color::Red))?;
-        self.put(0, 0, msg)
+        self.put(0, 0, &msg)
     }
 
     pub fn area (&mut self, alter_area: impl Fn(&[u16;4])->[u16;4]) -> &mut Self {
