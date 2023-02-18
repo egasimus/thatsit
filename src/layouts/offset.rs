@@ -1,9 +1,6 @@
-//! Offset the position of a widget.
-
 use crate::*;
 
-/// Render the contained Widget in a sub-Area starting some distance from
-/// the upper left corner of the Area that was passed.
+/// Moves a widget by a specified distance.
 #[derive(Copy, Clone, Default)]
 pub struct Offset<Unit, T>(
     /// The horizontal offset

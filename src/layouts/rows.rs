@@ -1,8 +1,6 @@
-//! Render widgets below each other
-
 use crate::*;
-use super::*;
 
+/// Renders widgets below each other.
 pub struct Rows<'a, T, U>(pub(crate) Vec<Collected<'a, T, U>>);
 
 impl<'a, T, U> Rows<'a, T, U> {

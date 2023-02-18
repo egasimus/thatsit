@@ -10,8 +10,10 @@ pub use input::*;
 mod output;
 pub use output::*;
 
+/// Standard result type. Shorthand for `Result<T, Box<dyn std::error::Error>>`
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+/// Provides the entry point into the UI's main event loop.
 pub trait MainLoop<T> {
     fn run (self, context: T) -> Result<T>;
 }

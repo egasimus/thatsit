@@ -3,9 +3,9 @@ use crate::*;
 
 use std::fmt::{Debug, Formatter};
 
-/// Displays information to the user in the format specified by the engine.
+/// Displays state to the user, in an engine-specific way
 pub trait Output<T, U> {
-    /// Render this component in an engine-specific way
+    /// Render this component
     fn render (&self, engine: &mut T) -> Result<Option<U>>;
     /// Wrap this output in the appropriate `Collected` variant.
     fn into_collected <'a> (self) -> Collected<'a, T, U> where Self: Sized + 'a {
@@ -63,7 +63,8 @@ pub trait Collection<'a, T, U> {
 }
 
 /// Wrapper that allows owned and borrowed items to be treated similarly.
-/// Thanks @steffahn for suggesting the overall approach!
+///
+/// Thanks @steffahn for pointing me in the right direction!
 pub enum Collected<'a, T, U> {
     Box(Box<dyn Output<T, U> + 'a>),
     Ref(&'a (dyn Output<T, U> + 'a)),
@@ -104,7 +105,7 @@ impl<'a, T, U> Collector<'a, T, U> {
     }
 }
 
-/// Callable struct that collects Collecteds from a closure into itself.
+/// Callable struct that collects widgets from a closure into itself.
 pub struct Collector<'a, T, U>(pub Vec<Collected<'a, T, U>>);
 
 /// Calling the collector with an item adds it to the collection.

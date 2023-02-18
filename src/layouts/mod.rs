@@ -68,11 +68,9 @@ impl<U: Unit> dyn Point<2, U> {
     }
 }
 
-/// A box, defined by position and size.
-/// When N=2, this represents a rectangle and so on.
-/// TODO replace Area with this?
-/// TODO - make signed;
-///      - count position (0, 0) from center of FOV;
+/// A rectangle, defined by position and size.
+///
+/// TODO - make signed, counting position (0, 0) from center of FOV;
 ///      - add method for converting to unsigned (corner at 0,0)
 pub trait Rect<U: Unit> {
     fn x (&self) -> U;

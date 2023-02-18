@@ -1,8 +1,6 @@
-//! Render widgets on top of each other
-
 use crate::*;
-use super::*;
 
+/// Renders widgets on top of each other.
 pub struct Layers<'a, T, U>(pub(crate) Vec<Collected<'a, T, U>>);
 
 impl<'a, T, U> Layers<'a, T, U> {
