@@ -5,7 +5,7 @@
 use crate::*;
 use std::io::{Stdout, Write, BufRead};
 
-impl<'a, R: BufRead, W: Write, X> Engine<Repl<R, W>> for X
+impl<'a, R: BufRead, W: Write, X> MainLoop<Repl<R, W>> for X
 where
     X: Input<String, String> + Output<Repl<R, W>, [u16;2]>
 {

@@ -45,7 +45,7 @@ use std::io::Write;
 use std::thread::spawn;
 use std::time::Duration;
 
-impl<W: Write, X: Input<TUI<W>, bool> + Output<TUI<W>, [u16;2]>> Engine<TUI<W>> for X {
+impl<W: Write, X: Input<TUI<W>, bool> + Output<TUI<W>, [u16;2]>> MainLoop<TUI<W>> for X {
     fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
         context.setup()?;
         loop {
@@ -211,7 +211,7 @@ impl TUIHarness {
 #[cfg(test)]
 mod test {
 
-    use crate::{Engine, layouts::*, engines::tui::*};
+    use crate::{MainLoop, layouts::*, engines::tui::*};
     use std::{error::Error, sync::atomic::Ordering};
 
     #[test]

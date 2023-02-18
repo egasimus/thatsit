@@ -12,7 +12,7 @@ pub use output::*;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-pub trait Engine<T> {
+pub trait MainLoop<T> {
     fn run (self, context: T) -> Result<T>;
 }
 

@@ -2,25 +2,37 @@ use crate::*;
 
 use std::fmt::{Debug, Formatter};
 
+/// Displays information to the user in the format specified by the engine.
 pub trait Output<T, U> {
-    fn render (&self, context: &mut T) -> Result<Option<U>>;
+    fn render (&self, engine: &mut T) -> Result<Option<U>>;
 }
 
-/// Widgets work the same when passed as immutable references.
+/// Widgets work the same when passed as references.
 impl<T, U, V: Output<T, U>> Output<T, U> for &V {
-    fn render (&self, context: &mut T) -> Result<Option<U>> {
-        (*self).render(context)
+    fn render (&self, engine: &mut T) -> Result<Option<U>> {
+        (*self).render(engine)
     }
 }
 
 /// Widgets work the same when boxed.
 impl<'a, T, U> Output<T, U> for Box<dyn Output<T, U> + 'a> {
-    fn render (&self, context: &mut T) -> Result<Option<U>> {
-        (**self).render(context)
+    fn render (&self, engine: &mut T) -> Result<Option<U>> {
+        (**self).render(engine)
     }
 }
 
-/// A collection of widgets
+/// Widgets wrapped in `Option` are optional.
+/// Note that setting an optional widget to `None` clobbers its state.
+impl<T, U, V: Output<T, U>> Output<T, U> for Option<V> {
+    fn render (&self, engine: &mut T) -> Result<Option<U>> {
+        match self {
+            Some(widget) => widget.render(engine),
+            None => Ok(None)
+        }
+    }
+}
+
+/// A collection of widgets.
 pub trait Collection<'a, T, U> {
     fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self;
 }
@@ -108,10 +120,10 @@ impl<'a, T, U> Debug for Collected<'a, T, U> {
 }
 
 impl<'a, T, U> Output<T, U> for Collected<'a, T, U> {
-    fn render (&self, context: &mut T) -> Result<Option<U>> {
+    fn render (&self, engine: &mut T) -> Result<Option<U>> {
         Ok(match self {
-            Self::Box(item) => (*item).render(context)?,
-            Self::Ref(item) => (*item).render(context)?,
+            Self::Box(item) => (*item).render(engine)?,
+            Self::Ref(item) => (*item).render(engine)?,
             Self::None => None
         })
     }
@@ -130,7 +142,7 @@ mod test {
             add(String::from("String"));
             add(NullWidget);
             add(&NullWidgett);
-        }).render(())
+        })
 
     }
 
@@ -142,7 +154,7 @@ mod test {
             add(String::from("String"));
             add(NullWidget);
             add(&NullWidgett);
-        }).render(())
+        })
 
     }
 

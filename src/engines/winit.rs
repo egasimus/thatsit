@@ -39,7 +39,7 @@ use winit::{
 
 pub type Unit = f32;
 
-impl<'a, X> Engine<Winit> for X
+impl<'a, X> MainLoop<Winit> for X
 where
     X: Input<WinitEvent, bool> + Output<Winit, Vec<[f32;4]>>
 {

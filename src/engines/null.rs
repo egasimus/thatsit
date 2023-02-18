@@ -16,7 +16,7 @@ impl Output<(), ()> for NullWidget {
     }
 }
 
-impl<'a, X: Input<(), ()> + Output<(), ()>> Engine<()> for X {
+impl<'a, X: Input<(), ()> + Output<(), ()>> MainLoop<()> for X {
     fn run (self, _: ()) -> Result<()> {
         Ok(())
     }
