@@ -76,49 +76,55 @@ impl<W: Write, T: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Offset<u1
     }
 }
 
-impl<'a, W: Write> Output<TUI<W>, [u16;2]> for Stacked<'a, TUI<W>, [u16;2]> {
+impl<'a, W: Write> Output<TUI<W>, [u16;2]> for Rows<'a, TUI<W>, [u16;2]> {
     fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         let mut x = 0;
         let mut y = 0;
-        match self.0 {
-            Axis::X => {
-                self.expect_min(&engine.area, [self.1.len() as u16, 1])?; // FIXME height
-                for item in self.1.iter() {
-                    let [w, h] = Offset(x, 0, item).render(engine)?.unwrap_or([0, 0]);
-                    x = x + w;
-                    y = y.max(h);
-                }
-            },
-            Axis::Y => {
-                self.expect_min(&engine.area, [1, self.1.len() as u16])?; // FIXME width
-                for item in self.1.iter() {
-                    let [w, h] = Offset(0, y, item).render(engine)?.unwrap_or([0, 0]);
-                    x = x.max(w);
-                    y = y + h;
-                }
-            },
-            Axis::Z => {
-                self.expect_min(&engine.area, [1, 1 as u16])?; // FIXME size
-                for item in self.1.iter().rev() {
-                    let [w, h] = item.render(engine)?.unwrap_or([0, 0]);
-                    x = x.max(w);
-                    y = y.max(h);
-                }
-            }
-        };
+        expect_min(&engine.area, [1, self.0.len() as u16])?; // FIXME width
+        for item in self.0.iter() {
+            let [w, h] = Offset(0, y, item).render(engine)?.unwrap_or([0, 0]);
+            x = x.max(w);
+            y = y + h;
+        }
         Ok(Some([x, y]))
     }
 }
 
-impl<'a, W: Write> Stacked<'a, TUI<W>, [u16;2]> {
-    /// Return an error if this area is larger than the minimum needed size
-    pub fn expect_min (&self, area: &impl Rect<u16>, min: [u16; 2]) -> std::io::Result<&Self> {
-        let [min_w, min_h] = min;
-        if area.w() < min_w || area.h() < min_h {
-            let msg = format!("no space ({:?} < {}x{})", self, min_w, min_h);
-            Err(Error::new(ErrorKind::Other, msg))
-        } else {
-            Ok(self)
+impl<'a, W: Write> Output<TUI<W>, [u16;2]> for Columns<'a, TUI<W>, [u16;2]> {
+    fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
+        let mut x = 0;
+        let mut y = 0;
+        expect_min(&engine.area, [self.0.len() as u16, 1])?; // FIXME height
+        for item in self.0.iter() {
+            let [w, h] = Offset(x, 0, item).render(engine)?.unwrap_or([0, 0]);
+            x = x + w;
+            y = y.max(h);
         }
+        Ok(Some([x, y]))
+    }
+}
+
+impl<'a, W: Write> Output<TUI<W>, [u16;2]> for Layers<'a, TUI<W>, [u16;2]> {
+    fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
+        let mut x = 0;
+        let mut y = 0;
+        expect_min(&engine.area, [1, 1 as u16])?; // FIXME size
+        for item in self.0.iter().rev() {
+            let [w, h] = item.render(engine)?.unwrap_or([0, 0]);
+            x = x.max(w);
+            y = y.max(h);
+        }
+        Ok(Some([x, y]))
+    }
+}
+
+/// Return an error if the available area is larger than the minimum needed size
+fn expect_min <T: Rect<u16> + std::fmt::Debug> (area: &T, min: [u16; 2]) -> std::io::Result<&T> {
+    let [min_w, min_h] = min;
+    if area.w() < min_w || area.h() < min_h {
+        let msg = format!("no space ({:?} < {}x{})", area, min_w, min_h);
+        Err(Error::new(ErrorKind::Other, msg))
+    } else {
+        Ok(area)
     }
 }

@@ -25,7 +25,7 @@ pub enum Collected<'a, T, U> {
 }
 
 impl<'a, T, U> Collector<'a, T, U> {
-    /// Call this collector's closure, collecting the items
+    /// Pass this collector to a closure which adds items to it
     pub fn collect_items (collect: impl Fn(&mut Collector<'a, T, U>)) -> Self {
         let mut items = Self(vec![]);
         collect(&mut items);
@@ -75,7 +75,7 @@ impl<'a, T, U> Collectible<'a, T, U> for dyn Output<T, U> + 'a {
 /// Boxed items are added as `Collected::Box`.
 impl<'a, T, U> Collectible<'a, T, U> for Box<dyn Output<T, U> + 'a> {
     fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized {
-        collector.add(Collected::Box(Box::new(self)));
+        collector.add(Collected::Box(self));
     }
 }
 
@@ -84,7 +84,7 @@ impl<'a, T, U> Debug for Collected<'a, T, U> {
         write!(f, "Collected({})", match self {
             Self::Box(_) => "Box",
             Self::Ref(_) => "Ref",
-            Self::None   => ".x.",
+            Self::None   => "Nil.",
         })
     }
 }
@@ -99,25 +99,33 @@ impl<'a, T, U> Output<T, U> for Collected<'a, T, U> {
     }
 }
 
-//pub trait Collection<'a, T, U> {
-    //fn add (self, widget: impl Output<T, U>) -> Self where Self: Sized {
-        //widget.collect(self);
-        //self
-    //}
-//}
-
 #[cfg(test)]
 mod test {
+
     use crate::{*, engines::null::*};
 
     #[test]
-    fn should_collect () {
-        let widget = NullWidget;
-        let items = Collector::<(), ()>::collect_items(|add|{
+    fn should_collect_callback () -> Result<()> {
+
+        Collector::<(), ()>::collect_items(|add|{
             add("String");
             add(String::from("String"));
             add(NullWidget);
-            add(&widget);
-        });
+            add(&NullWidgett);
+        }).render(())
+
     }
+
+    #[test]
+    fn should_collect_builder () -> Result<()> {
+
+        Collector::<(), ()>::collect_items(|add|{
+            add("String");
+            add(String::from("String"));
+            add(NullWidget);
+            add(&NullWidgett);
+        }).render(())
+
+    }
+
 }
