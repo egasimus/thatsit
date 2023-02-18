@@ -1,4 +1,4 @@
-use thatsit_core::{*, engines::repl::*};
+use thatsit::{*, engines::repl::*};
 use std::io::{BufRead, Write};
 
 #[derive(Debug)]

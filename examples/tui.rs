@@ -1,4 +1,4 @@
-use thatsit_core::{*, layouts::*, engines::tui::*};
+use thatsit::{*, layouts::*, engines::tui::*};
 use std::io::Write;
 
 #[derive(Debug)]

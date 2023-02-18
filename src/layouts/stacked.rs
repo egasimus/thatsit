@@ -36,11 +36,53 @@ impl<'a, T, U> Stacked<'a, T, U> {
 
 }
 
-pub struct Rows<'a, T, U>(pub dyn Fn(&mut Collector<'a, T, U>));
+pub struct Rows<'a, T, U>(Vec<Collected<'a, T, U>>);
 
-pub struct Columns<'a, T, U>(pub dyn Fn(&mut Collector<'a, T, U>));
+impl<'a, T, U> Rows<'a, T, U> {
+    pub fn new () -> Self {
+        Self(vec![])
+    }
+}
 
-pub struct Layers<'a, T, U>(pub dyn Fn(&mut Collector<'a, T, U>));
+impl<'a, T, U> Collection<'a, T, U> for Rows<'a, T, U> {
+    /// Add a row to this collection
+    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
+        self.0.push(widget);
+        self
+    }
+}
+
+pub struct Columns<'a, T, U>(Vec<Collected<'a, T, U>>);
+
+impl<'a, T, U> Columns<'a, T, U> {
+    pub fn new () -> Self {
+        Self(vec![])
+    }
+}
+
+impl<'a, T, U> Collection<'a, T, U> for Columns<'a, T, U> {
+    /// Add a column to this collection
+    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
+        self.0.push(widget);
+        self
+    }
+}
+
+pub struct Layers<'a, T, U>(Vec<Collected<'a, T, U>>);
+
+impl<'a, T, U> Layers<'a, T, U> {
+    pub fn new () -> Self {
+        Self(vec![])
+    }
+}
+
+impl<'a, T, U> Collection<'a, T, U> for Layers<'a, T, U> {
+    /// Add a layer to this collection
+    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
+        self.0.push(widget);
+        self
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -52,13 +94,13 @@ mod test {
 
     impl<T, U> Output<T, U> for StackedWidget1 {
         fn render (&self, engine: &mut T) -> Result<Option<U>> {
-            Columns(|add|{
+            Stacked::x(|add|{
                 add("String");
                 add(String::from("String"));
-                add(Rows(|add|{
+                add(Stacked::y(|add|{
                     add("String");
                     add(String::from("String"));
-                    add(Layers(|add|{
+                    add(Stacked::z(|add|{
                         add("String");
                         add(String::from("String"));
                     }));
