@@ -1,6 +1,6 @@
-//! # Winit platform
+//! # Winit engine
 //!
-//! This platform renders an interface to one or more windows created with `winit`.
+//! Renders an interface to one or more windows created with `winit`.
 
 use crate::{*, layouts::*};
 

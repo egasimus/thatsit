@@ -1,7 +1,6 @@
-//! # REPL platform
+//! # REPL engine.
 //!
-//! This platform renders an interface to the terminal
-//! as a series of question/answer prompts.
+//! Renders the app to the terminal as a series of question/answer prompts.
 
 use crate::*;
 use std::io::{Stdout, Write, BufRead};

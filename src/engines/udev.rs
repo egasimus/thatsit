@@ -1,5 +1,5 @@
-//! # Udev platform
+//! # Udev engine
 //!
-//! This platform renders an interface to one or more displays accessed via `udev`.
+//! Renders an interface to one or more hardware displays accessed via `udev`.
 
 use crate::*;

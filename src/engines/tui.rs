@@ -1,7 +1,6 @@
-//! # TUI platform
+//! # TUI engine
 //!
-//! This platform renders an interface to a terminal
-//! using `crossterm`.
+//! Renders the app to a terminal as an interactive text-based GUI (TUI).
 
 use crate::*;
 

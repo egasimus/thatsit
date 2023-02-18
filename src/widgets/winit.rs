@@ -1,5 +1,4 @@
 use crate::{*, engines::winit::*};
-use std::io::{BufRead, Write};
 
 impl Output<Winit, Vec<[f32;4]>> for String {
     fn render (&self, engine: &mut Winit) -> Result<Option<Vec<[f32;4]>>> {
@@ -8,7 +7,8 @@ impl Output<Winit, Vec<[f32;4]>> for String {
 }
 
 impl Output<Winit, Vec<[f32;4]>> for &str {
-    fn render (&self, engine: &mut Winit) -> Result<Option<Vec<[f32;4]>>> {
+    fn render (&self, _engine: &mut Winit) -> Result<Option<Vec<[f32;4]>>> {
+        // TODO: render text
         Ok(Some(vec![[0.0, 0.0, 0.0, 0.0]]))
     }
 }

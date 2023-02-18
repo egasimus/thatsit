@@ -30,12 +30,6 @@ impl<T, U, V: Input<T, U>> Input<T, U> for dyn Proxy<V> {
 
 pub trait Output<T, U> {
     fn render (&self, context: &mut T) -> Result<Option<U>>;
-
-    /// Add this output to a `Collector`. Used when building render trees in-place.
-    /// Thanks @steffahn for suggesting this!
-    fn collect <'a> (self, collect: &mut Collector<'a, T, U>) where Self: 'a + Sized {
-        collect.0.push(Collected::Box(Box::new(self)));
-    }
 }
 
 /// Widgets work the same when passed as immutable references.
@@ -43,18 +37,12 @@ impl<T, U, V: Output<T, U>> Output<T, U> for &V {
     fn render (&self, context: &mut T) -> Result<Option<U>> {
         (*self).render(context)
     }
-    fn collect <'a> (self, collect: &mut Collector<'a, T, U>) where Self: 'a + Sized {
-        collect.0.push(Collected::Ref(self));
-    }
 }
 
 /// Widgets work the same when boxed.
 impl<'a, T, U> Output<T, U> for Box<dyn Output<T, U> + 'a> {
     fn render (&self, context: &mut T) -> Result<Option<U>> {
         (**self).render(context)
-    }
-    fn collect <'b> (self, collect: &mut Collector<'b, T, U>) where Self: 'b + Sized {
-        collect.0.push(Collected::Box(self));
     }
 }
 
