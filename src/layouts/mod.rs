@@ -122,8 +122,8 @@ mod test {
 
         struct Widget;
 
-        impl<T, U> Output<T, U> for Widget {
-            fn render (&self, engine: &mut T) -> Result<Option<U>> {
+        impl Output<(), ()> for Widget {
+            fn render (&self, engine: &mut ()) -> Result<Option<()>> {
                 Columns::new()
                     .add(&"String")
                     .add(String::from("String"))

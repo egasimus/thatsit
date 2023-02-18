@@ -59,7 +59,7 @@ impl<T, U, V: Output<T, U>> Output<T, U> for Option<V> {
 
 /// A collection of widgets.
 pub trait Collection<'a, T, U> {
-    fn add (&mut self, widget: impl Output<T, U> + 'a) -> &mut Self;
+    fn add (self, widget: impl Output<T, U> + 'a) -> Self;
 }
 
 /// Wrapper that allows owned and borrowed items to be treated similarly.
@@ -134,7 +134,7 @@ mod test {
             add(&"String");
             add(String::from("String"));
             add(NullWidget);
-            add(&NullWidgett);
+            add(&NullWidget);
         });
 
         Ok(())
@@ -148,7 +148,7 @@ mod test {
             add(&"String");
             add(String::from("String"));
             add(NullWidget);
-            add(&NullWidgett);
+            add(&NullWidget);
         });
 
         Ok(())

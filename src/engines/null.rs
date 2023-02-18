@@ -2,7 +2,7 @@
 
 use crate::*;
 
-struct NullWidget;
+pub struct NullWidget;
 
 impl Input<(), ()> for NullWidget {
     fn handle (&mut self, _: &mut ()) -> Result<Option<()>> {

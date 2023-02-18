@@ -25,14 +25,14 @@ impl<W: Write> Input<TUI<W>, bool> for ExampleComponent {
 impl<W: Write> Output<TUI<W>, [u16;2]> for ExampleComponent {
     fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         Columns::new()
-            .add(*Rows::new()
+            .add(Rows::new()
                 .add("Press Esc to quit  ")
                 .add("Arrows move cursor ")
                 .add("Shift to highlight "))
-            .add(*Rows::new()
+            .add(Rows::new()
                 .add(&self.label)
                 .add(&self.input)
-                .add(*Layers::new()
+                .add(Layers::new()
                     .add("String")
                     .add(String::from("String"))))
             .render(engine)

@@ -224,7 +224,8 @@ mod test {
             sender.send(TUIInputEvent::Key(key))?;
         }
         let output = String::from_utf8(app.run(engine)?.output)?;
-        let prefix = "\u{1b}[?1049h\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[?25l\u{1b}[1;1H";
+        //let prefix = "\u{1b}[?1049h\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[?25l\u{1b}[1;1H";
+        let prefix = "\u{1b}[0m\u{1b}[?25h\u{1b}[?1049l\u{1b}[?1049h\u{1b}[?25l\u{1b}[0m\u{1b}[2J\u{1b}[?25l\u{1b}[1;1H";
         assert_eq!(output, format!("{prefix}just a label"));
         Ok(())
     }
