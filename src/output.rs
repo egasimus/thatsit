@@ -95,6 +95,13 @@ impl<'a, T, U, V: Output<T, U>> Collectible<'a, T, U> for &'a V {
     }
 }
 
+/// References to items are added as `Collected::Ref`.
+impl<'a, T, U, V: Output<T, U>> Collectible<'a, T, U> for &'a mut V {
+    fn collected (self) -> Collected<'a, T, U> {
+        Collected::Ref(self)
+    }
+}
+
 /// Boxed items are added as `Collected::Box`.
 impl<'a, T, U> Collectible<'a, T, U> for dyn Output<T, U> + 'a {
     fn collected (self) -> Collected<'a, T, U> where Self: Sized {
@@ -138,7 +145,7 @@ mod test {
     fn should_collect_callback () -> Result<()> {
 
         Collector::<(), ()>::collect_items(|add|{
-            add("String");
+            add(&"String");
             add(String::from("String"));
             add(NullWidget);
             add(&NullWidgett);
@@ -152,7 +159,7 @@ mod test {
     fn should_collect_builder () -> Result<()> {
 
         Collector::<(), ()>::collect_items(|add|{
-            add("String");
+            add(&"String");
             add(String::from("String"));
             add(NullWidget);
             add(&NullWidgett);

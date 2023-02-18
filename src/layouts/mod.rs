@@ -110,6 +110,7 @@ impl<U: Unit> Rect<U> for [U; 4] {
         self[3]
     }
 }
+
 #[cfg(test)]
 mod test {
 
@@ -124,19 +125,19 @@ mod test {
         impl<T, U> Output<T, U> for Widget {
             fn render (&self, engine: &mut T) -> Result<Option<U>> {
                 Columns::new()
-                    .add("String")
+                    .add(&"String")
                     .add(String::from("String"))
                     .add(Rows::new()
-                        .add("String")
+                        .add(&"String")
                         .add(String::from("String"))
                         .add(Layers::new()
-                            .add("String")
+                            .add(&"String")
                             .add(String::from("String"))))
                     .render(engine)
             }
         }
 
-        Widget.render(&mut ())?;
+        Output::<(), ()>::render(&Widget, &mut ())?;
 
         Ok(())
     }
