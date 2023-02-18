@@ -2,7 +2,7 @@
 //!
 //! Renders an interface to one or more windows created with `winit`.
 
-use crate::{*, layouts::*};
+use crate::*;
 
 use slog::{Drain, debug, warn, crit};
 

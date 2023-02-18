@@ -5,24 +5,48 @@ use std::fmt::{Debug, Formatter};
 
 /// Displays information to the user in the format specified by the engine.
 pub trait Output<T, U> {
+    /// Render this component in an engine-specific way
     fn render (&self, engine: &mut T) -> Result<Option<U>>;
+    /// Wrap this output in the appropriate `Collected` variant.
+    fn into_collected <'a> (self) -> Collected<'a, T, U> where Self: Sized + 'a {
+        Collected::Box(Box::new(self))
+    }
 }
 
-/// Widgets work the same when passed as references.
+/// Rendering works across immutable references.
 impl<T, U, V: Output<T, U>> Output<T, U> for &V {
     fn render (&self, engine: &mut T) -> Result<Option<U>> {
         (*self).render(engine)
     }
+    /// References to items are added as `Collected::Ref`.
+    fn into_collected <'a> (self) -> Collected<'a, T, U> where Self: Sized + 'a {
+        Collected::Ref(self)
+    }
 }
 
-/// Widgets work the same when boxed.
+/// Rendering works across mutable references.
+impl<T, U, V: Output<T, U>> Output<T, U> for &mut V {
+    fn render (&self, engine: &mut T) -> Result<Option<U>> {
+        (**self).render(engine)
+    }
+    /// Mutable references to items are added as `Collected::Ref`.
+    fn into_collected <'a> (self) -> Collected<'a, T, U> where Self: Sized + 'a {
+        Collected::Ref(self)
+    }
+}
+
+/// Rendering works across boxes.
 impl<'a, T, U> Output<T, U> for Box<dyn Output<T, U> + 'a> {
     fn render (&self, engine: &mut T) -> Result<Option<U>> {
         (**self).render(engine)
     }
+    /// Boxed items are added as `Collected::Box`.
+    fn into_collected <'b> (self) -> Collected<'b, T, U> where Self: Sized + 'b {
+        Collected::Box(self)
+    }
 }
 
-/// Widgets wrapped in `Option` are optional.
+/// Rendering a `None` renders nothing, implementing optional widgets.
 /// Note that setting an optional widget to `None` clobbers its state.
 impl<T, U, V: Output<T, U>> Output<T, U> for Option<V> {
     fn render (&self, engine: &mut T) -> Result<Option<U>> {
@@ -34,86 +58,16 @@ impl<T, U, V: Output<T, U>> Output<T, U> for Option<V> {
 }
 
 /// A collection of widgets.
-pub trait Collection<'a, T, U, V: Collectible<'a, T, U>> {
-    fn add (&mut self, widget: V) -> &mut Self;
-}
-
-/// Callable struct that collects Collecteds from a closure into itself.
-pub struct Collector<'a, T, U>(pub Vec<Collected<'a, T, U>>);
-
-/// An item that can be added into a collection.
-pub trait Collectible<'a, T, U> {
-    /// Add this output to a `Collector`. Used when building render trees in-place.
-    fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized {
-        collector.add(self.collected());
-    }
-    /// Wrap this collectible into a Collected.
-    fn collected (self) -> Collected<'a, T, U> where Self: Sized;
+pub trait Collection<'a, T, U> {
+    fn add (&mut self, widget: impl Output<T, U> + 'a) -> &mut Self;
 }
 
 /// Wrapper that allows owned and borrowed items to be treated similarly.
 /// Thanks @steffahn for suggesting the overall approach!
 pub enum Collected<'a, T, U> {
     Box(Box<dyn Output<T, U> + 'a>),
-    Ref(&'a dyn Output<T, U>),
+    Ref(&'a (dyn Output<T, U> + 'a)),
     None
-}
-
-impl<'a, T, U> Collector<'a, T, U> {
-    /// Pass this collector to a closure which adds items to it
-    pub fn collect_items (collect: impl Fn(&mut Collector<'a, T, U>)) -> Self {
-        let mut items = Self(vec![]);
-        collect(&mut items);
-        items
-    }
-    /// Add an item to this collector
-    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
-        self.0.push(widget);
-        self
-    }
-}
-
-/// Calling the collector with an item adds it to the collection.
-impl<'a, T, U, V: Collectible<'a, T, U>> FnOnce<(V, )> for Collector<'a, T, U> {
-    type Output = ();
-    extern "rust-call" fn call_once (mut self, args: (V,)) -> Self::Output {
-        self.call_mut(args)
-    }
-}
-
-/// Calling the collector with an item adds it to the collection.
-impl<'a, T, U, V: Collectible<'a, T, U>> FnMut<(V, )> for Collector<'a, T, U> {
-    extern "rust-call" fn call_mut (&mut self, (collectible,): (V,)) -> Self::Output {
-        collectible.collect_into(self)
-    }
-}
-
-/// References to items are added as `Collected::Ref`.
-impl<'a, T, U, V: Output<T, U>> Collectible<'a, T, U> for &'a V {
-    fn collected (self) -> Collected<'a, T, U> {
-        Collected::Ref(self)
-    }
-}
-
-/// References to items are added as `Collected::Ref`.
-impl<'a, T, U, V: Output<T, U>> Collectible<'a, T, U> for &'a mut V {
-    fn collected (self) -> Collected<'a, T, U> {
-        Collected::Ref(self)
-    }
-}
-
-/// Boxed items are added as `Collected::Box`.
-impl<'a, T, U> Collectible<'a, T, U> for dyn Output<T, U> + 'a {
-    fn collected (self) -> Collected<'a, T, U> where Self: Sized {
-        Collected::Box(Box::new(self))
-    }
-}
-
-/// Boxed items are added as `Collected::Box`.
-impl<'a, T, U> Collectible<'a, T, U> for Box<dyn Output<T, U> + 'a> {
-    fn collected (self) -> Collected<'a, T, U> {
-        Collected::Box(self)
-    }
 }
 
 impl<'a, T, U> Debug for Collected<'a, T, U> {
@@ -133,6 +87,38 @@ impl<'a, T, U> Output<T, U> for Collected<'a, T, U> {
             Self::Ref(item) => (*item).render(engine)?,
             Self::None => None
         })
+    }
+}
+
+impl<'a, T, U> Collector<'a, T, U> {
+    /// Pass this collector to a closure which adds items to it
+    pub fn collect_items (collect: impl Fn(&mut Collector<'a, T, U>)) -> Self {
+        let mut items = Self(vec![]);
+        collect(&mut items);
+        items
+    }
+    /// Add an item to this collector
+    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
+        self.0.push(widget);
+        self
+    }
+}
+
+/// Callable struct that collects Collecteds from a closure into itself.
+pub struct Collector<'a, T, U>(pub Vec<Collected<'a, T, U>>);
+
+/// Calling the collector with an item adds it to the collection.
+impl<'a, T, U, V: Output<T, U> + 'a> FnOnce<(V, )> for Collector<'a, T, U> {
+    type Output = ();
+    extern "rust-call" fn call_once (mut self, args: (V,)) -> Self::Output {
+        self.call_mut(args)
+    }
+}
+
+/// Calling the collector with an item adds it to the collection.
+impl<'a, T, U, V: Output<T, U> + 'a> FnMut<(V, )> for Collector<'a, T, U> {
+    extern "rust-call" fn call_mut (&mut self, (widget,): (V,)) -> Self::Output {
+        self.add(widget.into_collected());
     }
 }
 

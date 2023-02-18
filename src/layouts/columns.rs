@@ -10,10 +10,10 @@ impl<'a, T, U> Columns<'a, T, U> {
     }
 }
 
-impl<'a, T, U, V: Collectible<'a, T, U>> Collection<'a, T, U, V> for Columns<'a, T, U> {
+impl<'a, T, U> Collection<'a, T, U> for Columns<'a, T, U> {
     /// Add a column to this collection
-    fn add (&mut self, widget: V) -> &mut Self {
-        self.0.push(widget.collected());
+    fn add (&mut self, widget: impl Output<T, U> + 'a) -> &mut Self {
+        self.0.push(widget.into_collected());
         self
     }
 }

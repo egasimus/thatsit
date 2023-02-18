@@ -39,15 +39,18 @@ impl<R, W: Write> Repl<R, W> {
         self.output.write_all(data)?;
         Ok(())
     }
-    fn render (&mut self, state: &impl Output<Self, [u16;2]>) -> Result<()> {
-        state.render(self)?;
+    fn render (&mut self, engine: &impl Output<Self, [u16;2]>) -> Result<()> {
+        engine.render(self)?;
         self.output.flush()?;
         Ok(())
     }
 }
 
 impl<R: BufRead, W> Repl<R, W> {
-    fn handle (&mut self, state: &mut impl Output<Self, [u16;2]>) -> Result<String> {
+    fn handle (&mut self, _: &mut impl Output<Self, [u16;2]>) -> Result<String> {
+        Ok(self.read_line()?)
+    }
+    fn read_line (&mut self) -> Result<String> {
         let mut input = String::new();
         self.input.read_line(&mut input)?;
         Ok(input)

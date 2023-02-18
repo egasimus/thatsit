@@ -1,11 +1,4 @@
-use crate::{
-    *,
-    layouts::*,
-    engines::tui::{
-        *,
-        TUIInputEvent as Event
-    }
-};
+use crate::{*, layouts::*, engines::tui::*};
 
 use std::{io::{Write, Error, ErrorKind}};
 
