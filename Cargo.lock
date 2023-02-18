@@ -1635,7 +1635,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "thatsit-core"
+name = "thatsit"
 version = "0.1.0"
 dependencies = [
  "bitflags",
