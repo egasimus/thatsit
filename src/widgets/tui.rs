@@ -4,6 +4,7 @@ use crate::{
     engines::tui::{
         *,
         crossterm::{
+            QueueableCommand,
             cursor::MoveTo,
             style::{Print, Color, ResetColor, SetBackgroundColor, SetForegroundColor}
         }
@@ -132,91 +133,105 @@ fn expect_min <T: Rect<u16> + std::fmt::Debug> (area: &T, min: [u16; 2]) -> std:
     }
 }
 
+pub trait AddBorder<W, X, Y, Z>: Output<TUI<W>, [u16;2]> where
+    W: Write,
+    Y: BorderStyle,
+    Z: BorderTheme
+{
+    fn border (self, style: Y, theme: Z) -> Border<W, Self, Y, Z> where Self: Sized {
+        Border {
+            _write: std::marker::PhantomData,
+            widget: self,
+            style,
+            theme
+        }
+    }
+}
+
+impl<W, X, Y, Z> AddBorder<W, X, Y, Z> for X where
+    W: Write,
+    X: Output<TUI<W>, [u16;2]>,
+    Y: BorderStyle,
+    Z: BorderTheme
+{}
+
 /// A border around another widget
 #[derive(Copy, Clone, Default)]
-pub struct Border<T: Write, U: Output<TUI<T>, [u16;2]>, V, W>(pub V, pub W, pub U);
+pub struct Border<W, X, Y, Z> where
+    W: Write,
+    X: Output<TUI<W>, [u16;2]>,
+    Y: BorderStyle,
+    Z: BorderTheme
+{
+    _write: std::marker::PhantomData<W>,
+    widget: X,
+    style:  Y,
+    theme:  Z
+}
 
-impl<T, U, V, W> Output<TUI<T>, [u16;2]> for Border<T, U, V, W>
-where
-    T: Write,
-    U: Output<TUI<T>, [u16;2]>
+impl<W, X, Y, Z> Output<TUI<W>, [u16;2]> for Border<W, X, Y, Z> where
+    W: Write,
+    X: Output<TUI<W>, [u16;2]>,
+    Y: BorderStyle,
+    Z: BorderTheme
 {
 
-    fn render (&self, engine: &mut TUI<T>) -> Result<Option<[u16;2]>> {
-        let TUI { output, area } = engine;
+    fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
 
-        let w = area.w();
-        let h = area.h();
+        let w = engine.area.w();
+        let h = engine.area.h();
         if w == 0 || h == 0 {
             return Ok(None)
         }
 
-        let x = area.x();
-        let y = area.y();
+        let x = engine.area.x();
+        let y = engine.area.y();
 
-        // draw top
-        let (top_left, fg, bg) = T::top_left(&self.1);
-        set_colors(output, &fg, &bg)?;
-        output.queue(MoveTo(x, y))?.queue(Print(&top_left))?;
+        // Draw top
+        let (top_left, fg, bg) = Y::top_left(&self.theme);
+        engine.set_colors(&fg, &bg)?.put(x, y, &top_left)?;
+        let (top, fg, bg) = Y::top(&self.theme);
+        engine.set_colors(&fg, &bg)?.put(x+1, y, &String::from(top).repeat((w-2) as usize))?;
+        let (top_right, fg, bg) = Y::top_right(&self.theme);
+        engine.set_colors(&fg, &bg)?.put(x+w-1, y, &top_right)?;
 
-        let (top, fg, bg) = T::top(&self.1);
-        set_colors(output, &fg, &bg)?;
-        output.queue(MoveTo(x+1, y))?.queue(Print(&String::from(top).repeat((w-2) as usize)))?;
-
-        let (top_right, fg, bg) = T::top_right(&self.1);
-        set_colors(output, &fg, &bg)?;
-        output.queue(MoveTo(x+w-1, y))?.queue(Print(&top_right))?;
-
-        // draw sides and background
-        let (left, fg, bg) = T::left(&self.1);
-        set_colors(output, &fg, &bg)?;
+        // Draw sides and background
+        let (left, fg, bg) = Y::left(&self.theme);
         for y in y+1..y+h-1 {
-            output.queue(MoveTo(x, y))?.queue(Print(&left))?;
+            engine.set_colors(&fg, &bg)?.put(x, y, &left)?;
         }
 
-        set_colors(output, &self.1.hi(), &self.1.bg())?;
+        engine.set_colors(&self.theme.hi(), &self.theme.bg())?;
         for y in y+1..y+h-1 {
-            output.queue(MoveTo(x+1, y))?.queue(Print(&" ".repeat((w-2) as usize)))?;
+            engine.put(x+1, y, &" ".repeat((w-2) as usize))?;
         }
 
-        let (right, fg, bg) = T::right(&self.1);
-        set_colors(output, &fg, &bg)?;
+        let (right, fg, bg) = Y::right(&self.theme);
+        engine.set_colors(&fg, &bg)?;
         for y in y+1..y+h-1 {
-            output.queue(MoveTo(x+w-1, y))?.queue(Print(&right))?;
+            engine.put(x+w-1, y, &right)?;
         }
 
-        // draw bottom
-        let (bottom_left, fg, bg) = T::bottom_left(&self.1);
-        set_colors(output, &fg, &bg)?;
-        output.queue(MoveTo(x, y+h-1))?.queue(Print(&bottom_left))?;
+        // Draw bottom
+        let (bottom_left, fg, bg) = Y::bottom_left(&self.theme);
+        engine.set_colors(&fg, &bg)?.put(x, y+h-1, &bottom_left)?;
+        let (bottom, fg, bg) = Y::bottom(&self.theme);
+        engine.set_colors(&fg, &bg)?.put(x+1, y+h-1, &String::from(bottom).repeat((w-2) as usize))?;
+        let (bottom_right, fg, bg) = Y::bottom_right(&self.theme);
+        engine.set_colors(&fg, &bg)?.put(x+w-1, y+h-1, &bottom_right)?;
 
-        let (bottom, fg, bg) = T::bottom(&self.1);
-        set_colors(output, &fg, &bg)?;
-        output.queue(MoveTo(x+1, y+h-1))?.queue(Print(&String::from(bottom).repeat((w-2) as usize)))?;
+        // Set background color
+        engine.set_colors(&None, &self.theme.bg())?;
 
-        let (bottom_right, fg, bg) = T::bottom_right(&self.1);
-        set_colors(output, &fg, &bg)?;
-        output.queue(MoveTo(x+w-1, y+h-1))?.queue(Print(&bottom_right))?;
+        // Grow area by border size
+        engine.area = [x+1,y+1,w-2,h-2];
 
         // Draw contained element
-        set_colors(output, &None, &self.1.bg())?;
-
-        engine.area = [x+1,y+1,w-2,h-2];
-        self.2.render(output, engine)
+        self.widget.render(engine)
     }
 
 }
 
-fn set_colors (out: &mut impl Write, fg: &Option<Color>, bg: &Option<Color>) -> Result<()> {
-    out.queue(ResetColor)?;
-    if let Some(fg) = fg {
-        out.queue(SetForegroundColor(*fg))?;
-    }
-    if let Some(bg) = bg {
-        out.queue(SetBackgroundColor(*bg))?;
-    }
-    Ok(())
-}
 
 /// A set of colors to use for rendering a border.
 pub trait BorderTheme {
