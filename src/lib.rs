@@ -60,37 +60,7 @@ impl<'a, T, U> Output<T, U> for Box<dyn Output<T, U> + 'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::*;
-
-    impl Output<(), ()> for String {
-        fn render (&self, context: &mut ()) -> Result<Option<()>> {
-            Ok(Some(()))
-        }
-    }
-    impl Output<(), ()> for &str {
-        fn render (&self, context: &mut ()) -> Result<Option<()>> {
-            Ok(Some(()))
-        }
-    }
-
-    struct NullWidget;
-
-    impl Input<(), ()> for NullWidget {
-        fn handle (&mut self, context: &mut ()) -> Result<Option<()>> {
-            Ok(Some(()))
-        }
-    }
-    impl Output<(), ()> for NullWidget {
-        fn render (&self, context: &mut ()) -> Result<Option<()>> {
-            Ok(Some(()))
-        }
-    }
-
-    impl<'a, X: Input<(), ()> + Output<(), ()>> Engine<()> for X {
-        fn run (self, context: ()) -> Result<()> {
-            Ok(context)
-        }
-    }
+    use crate::{*, engines::null::*};
 
     #[test]
     fn should_run () -> Result<()> {
@@ -101,14 +71,4 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn should_collect () {
-        let widget = NullWidget;
-        let items = Collector::collect(|add|{
-            add("String");
-            add(String::from("String"));
-            add(NullWidget);
-            add(&widget);
-        });
-    }
 }

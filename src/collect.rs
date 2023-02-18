@@ -51,4 +51,18 @@ impl<'a, T, U> Collector<'a, T, U> {
     }
 }
 
+#[cfg(test)]
+mod test {
+    use crate::{*, engines::null::*};
 
+    #[test]
+    fn should_collect () {
+        let widget = NullWidget;
+        let items = Collector::collect(|add|{
+            add("String");
+            add(String::from("String"));
+            add(NullWidget);
+            add(&widget);
+        });
+    }
+}
