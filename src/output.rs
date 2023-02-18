@@ -2,6 +2,24 @@ use crate::*;
 
 use std::fmt::{Debug, Formatter};
 
+pub trait Output<T, U> {
+    fn render (&self, context: &mut T) -> Result<Option<U>>;
+}
+
+/// Widgets work the same when passed as immutable references.
+impl<T, U, V: Output<T, U>> Output<T, U> for &V {
+    fn render (&self, context: &mut T) -> Result<Option<U>> {
+        (*self).render(context)
+    }
+}
+
+/// Widgets work the same when boxed.
+impl<'a, T, U> Output<T, U> for Box<dyn Output<T, U> + 'a> {
+    fn render (&self, context: &mut T) -> Result<Option<U>> {
+        (**self).render(context)
+    }
+}
+
 /// A collection of widgets
 pub trait Collection<'a, T, U> {
     fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self;

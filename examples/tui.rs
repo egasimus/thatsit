@@ -4,7 +4,8 @@ use std::io::Write;
 #[derive(Debug)]
 pub struct ExampleComponent {
     label: String,
-    input: String
+    input: String,
+    index: usize
 }
 
 impl<W: Write> Input<TUI<W>, bool> for ExampleComponent {
@@ -24,7 +25,10 @@ impl<W: Write> Input<TUI<W>, bool> for ExampleComponent {
 impl<W: Write> Output<TUI<W>, [u16;2]> for ExampleComponent {
     fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
         Columns::new()
-            .add("Press Esc to quit ")
+            .add(*Rows::new()
+                .add("Press Esc to quit  ")
+                .add("Arrows move cursor ")
+                .add("Shift to highlight "))
             .add(*Rows::new()
                 .add(&self.label)
                 .add(&self.input)
@@ -39,7 +43,8 @@ fn main () -> Result<()> {
 
     let result = ExampleComponent {
         label: "Enter some text:".to_string(),
-        input: "> ".to_string()
+        input: "> ".to_string(),
+        index: 2
     }.run(TUI::stdio()?)?;
 
     Ok(())
