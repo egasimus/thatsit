@@ -77,6 +77,9 @@ pub trait Rect<U: Unit> {
     fn y (&self) -> U;
     fn w (&self) -> U;
     fn h (&self) -> U;
+    fn size (&self) -> [U;2] {
+        [self.w(), self.h()]
+    }
 }
 
 impl<U: Unit> Rect<U> for (U, U, U, U) {
