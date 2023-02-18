@@ -1,3 +1,5 @@
+//! Thanks @steffahn for suggesting the overall approach!
+
 use crate::*;
 
 use std::fmt::{Debug, Formatter};
@@ -33,8 +35,8 @@ impl<T, U, V: Output<T, U>> Output<T, U> for Option<V> {
 }
 
 /// A collection of widgets.
-pub trait Collection<'a, T, U> {
-    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self;
+pub trait Collection<'a, T, U, V: Collectible<'a, T, U>> {
+    fn add (&mut self, widget: V) -> &mut Self;
 }
 
 /// Callable struct that collects Collecteds from a closure into itself.
@@ -43,8 +45,11 @@ pub struct Collector<'a, T, U>(pub Vec<Collected<'a, T, U>>);
 /// An item that can be added into a collection.
 pub trait Collectible<'a, T, U> {
     /// Add this output to a `Collector`. Used when building render trees in-place.
-    /// Thanks @steffahn for suggesting this!
-    fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized;
+    fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized {
+        collector.add(self.collected());
+    }
+    /// Wrap this collectible into a Collected.
+    fn collected (self) -> Collected<'a, T, U> where Self: Sized;
 }
 
 /// Wrapper that allows owned and borrowed items to be treated similarly.
@@ -61,11 +66,6 @@ impl<'a, T, U> Collector<'a, T, U> {
         collect(&mut items);
         items
     }
-}
-
-/// A Collector is only one kind of Collection:
-/// the kind where you add items by calling the Collector
-impl<'a, T, U> Collection<'a, T, U> for Collector<'a, T, U> {
     /// Add an item to this collector
     fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
         self.0.push(widget);
@@ -90,22 +90,22 @@ impl<'a, T, U, V: Collectible<'a, T, U>> FnMut<(V, )> for Collector<'a, T, U> {
 
 /// References to items are added as `Collected::Ref`.
 impl<'a, T, U, V: Output<T, U>> Collectible<'a, T, U> for &'a V {
-    fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized {
-        collector.add(Collected::Ref(self));
+    fn collected (self) -> Collected<'a, T, U> {
+        Collected::Ref(self)
     }
 }
 
 /// Boxed items are added as `Collected::Box`.
 impl<'a, T, U> Collectible<'a, T, U> for dyn Output<T, U> + 'a {
-    fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized {
-        collector.add(Collected::Box(Box::new(self)));
+    fn collected (self) -> Collected<'a, T, U> where Self: Sized {
+        Collected::Box(Box::new(self))
     }
 }
 
 /// Boxed items are added as `Collected::Box`.
 impl<'a, T, U> Collectible<'a, T, U> for Box<dyn Output<T, U> + 'a> {
-    fn collect_into (self, collector: &mut Collector<'a, T, U>) where Self: Sized {
-        collector.add(Collected::Box(self));
+    fn collected (self) -> Collected<'a, T, U> {
+        Collected::Box(self)
     }
 }
 
@@ -142,7 +142,9 @@ mod test {
             add(String::from("String"));
             add(NullWidget);
             add(&NullWidgett);
-        })
+        });
+
+        Ok(())
 
     }
 
@@ -154,7 +156,9 @@ mod test {
             add(String::from("String"));
             add(NullWidget);
             add(&NullWidgett);
-        })
+        });
+
+        Ok(())
 
     }
 

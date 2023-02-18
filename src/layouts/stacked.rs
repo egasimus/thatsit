@@ -11,10 +11,10 @@ impl<'a, T, U> Rows<'a, T, U> {
     }
 }
 
-impl<'a, T, U> Collection<'a, T, U> for Rows<'a, T, U> {
+impl<'a, T, U, V: Collectible<'a, T, U>> Collection<'a, T, U, V> for Rows<'a, T, U> {
     /// Add a row to this collection
-    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
-        self.0.push(widget);
+    fn add (&mut self, widget: V) -> &mut Self {
+        self.0.push(widget.collected());
         self
     }
 }
@@ -27,10 +27,10 @@ impl<'a, T, U> Columns<'a, T, U> {
     }
 }
 
-impl<'a, T, U> Collection<'a, T, U> for Columns<'a, T, U> {
+impl<'a, T, U, V: Collectible<'a, T, U>> Collection<'a, T, U, V> for Columns<'a, T, U> {
     /// Add a column to this collection
-    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
-        self.0.push(widget);
+    fn add (&mut self, widget: V) -> &mut Self {
+        self.0.push(widget.collected());
         self
     }
 }
@@ -43,10 +43,10 @@ impl<'a, T, U> Layers<'a, T, U> {
     }
 }
 
-impl<'a, T, U> Collection<'a, T, U> for Layers<'a, T, U> {
+impl<'a, T, U, V: Collectible<'a, T, U>> Collection<'a, T, U, V> for Layers<'a, T, U> {
     /// Add a layer to this collection
-    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
-        self.0.push(widget);
+    fn add (&mut self, widget: V) -> &mut Self {
+        self.0.push(widget.collected());
         self
     }
 }
