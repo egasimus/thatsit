@@ -33,12 +33,12 @@ use ::crossterm::{
     },
 };
 
-pub use crossterm::event::{
+pub use crossterm::{self, event::{
     Event as TUIInputEvent,
     KeyEvent,
     KeyCode,
     KeyModifiers
-};
+}};
 
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc::{channel, Sender, Receiver}};
 use std::io::Write;
