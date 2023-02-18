@@ -1,4 +1,3 @@
-//! Thanks @steffahn for suggesting the overall approach!
 
 use crate::*;
 
@@ -53,6 +52,7 @@ pub trait Collectible<'a, T, U> {
 }
 
 /// Wrapper that allows owned and borrowed items to be treated similarly.
+/// Thanks @steffahn for suggesting the overall approach!
 pub enum Collected<'a, T, U> {
     Box(Box<dyn Output<T, U> + 'a>),
     Ref(&'a dyn Output<T, U>),

@@ -1,31 +1,29 @@
 //! Abstract layout primitives.
 
-mod align;
-pub use align::*;
+mod align; pub use align::*;
+mod columns; pub use columns::*;
+mod fixed; pub use fixed::*;
+mod focus; pub use focus::*;
+mod layers; pub use layers::*;
+mod max; pub use max::*;
+mod min; pub use min::*;
+mod offset; pub use offset::*;
+mod rows; pub use rows::*;
+mod text; pub use text::*;
 
-mod fixed;
-pub use fixed::*;
+use std::{fmt::{Debug}};
 
-mod focus;
-pub use focus::*;
+/// An axis in space
+#[derive(Copy, Clone, Debug)]
+pub enum Axis {
+    /// Time
+    T = 0,
+    X,
+    Y,
+    Z,
+}
 
-mod max;
-pub use max::*;
-
-mod min;
-pub use min::*;
-
-mod offset;
-pub use offset::*;
-
-mod stacked;
-pub use stacked::*;
-
-mod text;
-pub use text::*;
-
-use std::{fmt::{Display, Debug}};
-
+/// A unit of distance.
 pub trait Unit: Copy {
     const NIL: Self;
 }
@@ -46,7 +44,7 @@ impl Unit for u32 {
     const NIL: Self = 0u32;
 }
 
-//#[derive(Copy, Clone, Debug)]
+/// A point in an N-dimensional space.
 pub trait Point<const N: usize, D: Unit> {
     fn nth (&self, n: usize) -> D;
 }
@@ -70,7 +68,7 @@ impl<U: Unit> dyn Point<2, U> {
     }
 }
 
-/// A box, consisting of two vectors - position and size.
+/// A box, defined by position and size.
 /// When N=2, this represents a rectangle and so on.
 /// TODO replace Area with this?
 /// TODO - make signed;
@@ -112,49 +110,35 @@ impl<U: Unit> Rect<U> for [U; 4] {
         self[3]
     }
 }
+#[cfg(test)]
+mod test {
 
-#[derive(Copy, Clone, Debug)]
-pub enum Axis {
-    X = 0,
-    Y,
-    Z,
-}
+    use crate::{*, layouts::*};
+    use std::io::Write;
 
-/// A rectangle on the screen in (X, Y, W, H) format, from top left.
-#[derive(Copy, Clone, Default, Debug)]
-pub struct Area<U: Unit>(
-    pub U,
-    pub U,
-    pub U,
-    pub U
-);
+    #[test]
+    fn should_stack_builder () -> Result<()> {
 
-impl<U: Unit + Ord + Display + Debug> Area<U> {
-}
+        struct Widget;
 
-impl<U: Unit> Area<U> {
-    ///// Move the cursor to the upper left corner of the area
-    //pub fn home <'a> (&'a self, out: &'a mut dyn Write) -> Result<&'a mut dyn Write> {
-        //out.queue(MoveTo(self.x(), self.y()))
-    //}
-    #[inline]
-    pub fn x (&self) -> U {
-        self.0
+        impl<T, U> Output<T, U> for Widget {
+            fn render (&self, engine: &mut T) -> Result<Option<U>> {
+                Columns::new()
+                    .add("String")
+                    .add(String::from("String"))
+                    .add(Rows::new()
+                        .add("String")
+                        .add(String::from("String"))
+                        .add(Layers::new()
+                            .add("String")
+                            .add(String::from("String"))))
+                    .render(engine)
+            }
+        }
+
+        Widget.render(&mut ())?;
+
+        Ok(())
     }
-    #[inline]
-    pub fn y (&self) -> U {
-        self.1
-    }
-    #[inline]
-    pub fn w (&self) -> U {
-        self.2
-    }
-    #[inline]
-    pub fn h (&self) -> U {
-        self.3
-    }
-    #[inline]
-    pub fn size (&self) -> (U, U) {
-        (self.w(), self.h())
-    }
+
 }
