@@ -19,15 +19,6 @@ pub struct Tabbed<T> {
     pub range: (usize, usize)
 }
 
-impl<T> Proxy<Option<T>> for Tabbed<T> {
-    fn get (&self) -> &Option<T> {
-        &self.focus.and_then(|focus|self.pages.get(focus)).map(|page|page.1)
-    }
-    fn get_mut (&mut self) -> &mut Option<T> {
-        &mut self.focus.and_then(|focus|self.pages.get_mut(focus)).map(|page|page.1)
-    }
-}
-
 impl<T> Tabbed<T> {
 
     fn add_tabs <'a, U, V, W: Output<U, V> + Collection<'a, U, V>> (
@@ -67,16 +58,19 @@ impl<T> Tabbed<T> {
     }
 
     pub fn layout <'a, U, V> (&'a self) -> Collected<'a, U, V> where
-        T: Output<U, V>,
-        String: Output<U, V>,
+        T:                 Output<U, V>,
+        String:            Output<U, V>,
         Columns<'a, U, V>: Output<U, V>,
         Rows<'a, U, V>:    Output<U, V>,
-        u16:                       Output<U, V>,
+        u16:               Output<U, V>,
     {
-        let page = self.get();
+        let page  = self.focus.and_then(|focus|self.pages.get(focus)).map(|page|&page.1);
         let space = if page.is_some() { 1u16 } else { 0u16 };
         match self.side {
-            None => Collected::Ref(page),
+            None => match page {
+                Some(page) => Collected::Ref(page),
+                None       => Collected::None
+            },
             Some(side) => Collected::Box(match side {
                 TabSide::Left   => Box::new(Columns::new()
                     .add(self.tabs()).add(space).add(page)) as Box<dyn Output<U, V>>,
