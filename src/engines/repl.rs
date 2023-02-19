@@ -7,7 +7,7 @@ use std::io::{Stdout, Write, BufRead};
 
 impl<'a, R: BufRead, W: Write, X> MainLoop<Repl<R, W>> for X
 where
-    X: Input<String, String> + Output<Repl<R, W>, [u16;2]>
+    X: Input<Repl<R, W>, String> + Output<Repl<R, W>, [u16;2]>
 {
     fn run (mut self, mut context: Repl<R, W>) -> Result<Repl<R, W>> {
         loop {

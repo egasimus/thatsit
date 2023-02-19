@@ -41,7 +41,7 @@ pub type Unit = f32;
 
 impl<'a, X> MainLoop<Winit> for X
 where
-    X: Input<WinitEvent, bool> + Output<Winit, Vec<[f32;4]>>
+    X: Input<Winit, bool> + Output<Winit, Vec<[f32;4]>>
 {
     fn run (mut self, mut context: Winit) -> Result<Winit> {
         context.setup();
@@ -66,6 +66,8 @@ pub struct Winit {
     egl_context:   smithay::backend::egl::EGLContext,
     egl_display:   smithay::backend::egl::display::EGLDisplay,
     renderer:      Rc<RefCell<smithay::backend::renderer::gles2::Gles2Renderer>>,
+    /// Event currently being handled
+    event:         Option<WinitEvent>
 }
 
 impl Winit {
@@ -113,6 +115,7 @@ impl Winit {
             started:  Cell::new(None),
             egl_display,
             egl_context,
+            event: None
         })
 
     }
@@ -152,7 +155,7 @@ impl Winit {
         }
     }
 
-    fn handle (&mut self, app: &mut impl Input<WinitEvent, bool>) -> Result<()> {
+    fn handle (&mut self, app: &mut impl Input<Winit, bool>) -> Result<()> {
         if let Err(e) = {
             let mut closed = false;
             let events = self.events.clone();

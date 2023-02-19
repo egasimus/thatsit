@@ -18,6 +18,10 @@ pub trait MainLoop<T> {
     fn run (self, context: T) -> Result<T>;
 }
 
+pub trait Widget<A, B, C>: Input<A, B> + Output<A, C> {}
+
+impl<X, A, B, C> Widget<A, B, C> for X where X: Input<A, B> + Output<A, C> {}
+
 #[cfg(test)]
 mod test {
     use crate::{*, engines::null::*};
