@@ -388,22 +388,8 @@ impl BorderStyle for Flat {
 
 impl<W: Write, T: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Tabbed<T> {
     fn render (&self, engine: &mut TUI<W>) -> Result<Option<[u16;2]>> {
-        self.scroll.size.set(engine.area.h() as usize); // Record the height for scrolling
-        let show_tabs = self.side.is_some();
-        let page: Option<T> = self.get();
-        let layout = match self.side {
-            None =>
-                self.page(),
-            Some(TabSide::Left)   => Columns::new()
-                .add(self.tabs()).add(page.map(|_|1)).add(page),
-            Some(TabSide::Top)    => Rows::new()
-                .add(self.tabs()).add(page.map(|_|1)).add(page),
-            Some(TabSide::Right)  => Columns::new()
-                .add(page).add(page.map(|_|1)).add(self.tabs()),
-            Some(TabSide::Bottom) => Rows::new()
-                .add(page).add(page.map(|_|1)).add(self.tabs()),
-        };
-        layout.render(engine)
+        //self.scroll.size.set(engine.area.h() as usize); // Record the height for scrolling
+        self.layout().render(engine)
     }
 }
 

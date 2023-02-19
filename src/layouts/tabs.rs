@@ -3,7 +3,7 @@
 use crate::*;
 use super::*;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum TabSide {
     Top,
     Right,
@@ -31,18 +31,18 @@ impl<T> Proxy<Option<T>> for Tabbed<T> {
 impl<T> Tabbed<T> {
 
     fn add_tabs <'a, U, V, W: Output<U, V> + Collection<'a, U, V>> (
-        &'a self,
-        mut container: W
-    ) -> W {
+        &'a self, mut container: W
+    ) -> W where String: Output<U, V> {
         let selected = self.focus;
         let (skip, size) = self.range;
         for (index, (label, _)) in self.pages.iter().enumerate().skip(skip) {
             let label = label.clone();
-            if Some(index) == self.focus {
-                container = container.add(label.style(&|s: String|s.with(Color::Yellow).bold()));
+            let focused = Some(index) == self.focus;
+            container = container.add(label); /*.style(&|s: String|if focused {
+                s.with(Color::Yellow).bold()
             } else {
-                container = container.add(label.style(&|s: String|s.with(Color::White), label));
-            }
+                s.with(Color::White)
+            }));*/
             if index >= size {
                 break
             }
@@ -50,7 +50,8 @@ impl<T> Tabbed<T> {
         container
     }
 
-    pub fn tabs <'a, U: 'a, V: 'a> (&self) -> Option<Box<dyn Output<U, V>>> where
+    pub fn tabs <'a, U: 'a, V: 'a> (&'a self) -> Option<Box<dyn Output<U, V> + 'a>> where
+        String:            Output<U, V>,
         Columns<'a, U, V>: Output<U, V> + Collection<'a, U, V>,
         Rows<'a, U, V>:    Output<U, V> + Collection<'a, U, V>
     {
@@ -65,26 +66,27 @@ impl<T> Tabbed<T> {
         }
     }
 
-    pub fn layout <U, V> (&self) -> &dyn Output<U, V> where
+    pub fn layout <'a, U, V> (&'a self) -> Collected<'a, U, V> where
         T: Output<U, V>,
-        for<'a> Columns<'a, U, V>: Output<U, V>,
-        for<'a> Rows<'a, U, V>:    Output<U, V>,
+        String: Output<U, V>,
+        Columns<'a, U, V>: Output<U, V>,
+        Rows<'a, U, V>:    Output<U, V>,
         u16:                       Output<U, V>,
     {
-        let show_tabs = self.side.is_some();
-        let page: Option<T> = *self.get();
+        let page = self.get();
+        let space = if page.is_some() { 1u16 } else { 0u16 };
         match self.side {
-            None => &page,
-            Some(side) => match side {
-                TabSide::Left   => &Columns::new()
-                    .add(self.tabs()).add(page.map(|_|1u16)).add(page) as &dyn Output<U, V>,
-                TabSide::Top    => &Rows::new()
-                    .add(self.tabs()).add(page.map(|_|1u16)).add(page) as &dyn Output<U, V>,
-                TabSide::Right  => &Columns::new()
-                    .add(page).add(page.map(|_|1u16)).add(self.tabs()) as &dyn Output<U, V>,
-                TabSide::Bottom => &Rows::new()
-                    .add(page).add(page.map(|_|1u16)).add(self.tabs()) as &dyn Output<U, V>
-            }
+            None => Collected::Ref(page),
+            Some(side) => Collected::Box(match side {
+                TabSide::Left   => Box::new(Columns::new()
+                    .add(self.tabs()).add(space).add(page)) as Box<dyn Output<U, V>>,
+                TabSide::Top    => Box::new(Rows::new()
+                    .add(self.tabs()).add(space).add(page)) as Box<dyn Output<U, V>>,
+                TabSide::Right  => Box::new(Columns::new()
+                    .add(page).add(space).add(self.tabs())) as Box<dyn Output<U, V>>,
+                TabSide::Bottom => Box::new(Rows::new()
+                    .add(page).add(space).add(self.tabs())) as Box<dyn Output<U, V>>
+            })
         }
     }
 
