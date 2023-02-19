@@ -5,6 +5,9 @@ use super::*;
 
 use std::{slice::Iter, slice::IterMut};
 
+#[derive(Debug)]
+pub struct Focused<T>(T);
+
 //
 // TODO: struct Focused<T> { items: T, index: usize };
 // - focused_at (index: usize)

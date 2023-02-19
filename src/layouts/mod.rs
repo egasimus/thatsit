@@ -10,6 +10,7 @@ mod min; pub use min::*;
 mod offset; pub use offset::*;
 mod rows; pub use rows::*;
 mod text; pub use text::*;
+mod tabs; pub use tabs::*;
 
 use std::{fmt::{Debug}};
 
