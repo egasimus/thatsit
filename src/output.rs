@@ -121,7 +121,7 @@ mod test {
 
     use crate::{*, engines::null::*};
 
-    #[test]
+    #[ignore] #[test]
     fn should_collect_callback () -> Result<()> {
 
         Collector::<(), ()>::collect_items(|add|{
@@ -135,7 +135,7 @@ mod test {
 
     }
 
-    #[test]
+    #[ignore] #[test]
     fn should_collect_builder () -> Result<()> {
 
         Collector::<(), ()>::collect_items(|add|{

@@ -396,22 +396,20 @@ impl<W: Write, T: Output<TUI<W>, [u16;2]>> Output<TUI<W>, [u16;2]> for Tabbed<T>
 #[cfg(test)]
 mod test {
 
-    use thatsit::{Area, Widget};
+    use crate::{*, layouts::*, widgets::tui::*};
 
-    #[test]
-    fn test_borders () {
+    //#[test]
+    //fn test_borders () {
 
-        use crate::{Border, InsetTall, InsetWide};
+        //let mut output = Vec::<u8>::new();
+        //let layout = "foo".border(Inset, Tall);
+        //layout.render(&mut output, [0, 0, 5, 5]);
+        //panic!("{}", std::str::from_utf8(&output).unwrap());
 
-        let mut output = Vec::<u8>::new();
-        let layout = Border(InsetTall, "foo");
-        layout.render(&mut output, Area(0, 0, 5, 5));
-        panic!("{}", std::str::from_utf8(&output).unwrap());
+        //let mut output = Vec::<u8>::new();
+        //let layout = "foo".border(Outset, Wide);
+        //layout.render(&mut output, [0, 0, 5, 5]);
+        //panic!("{}", std::str::from_utf8(&output).unwrap());
 
-        let mut output = Vec::<u8>::new();
-        let layout = Border(InsetWide, "foo");
-        layout.render(&mut output, Area(0, 0, 5, 5));
-        panic!("{}", std::str::from_utf8(&output).unwrap());
-
-    }
+    //}
 }

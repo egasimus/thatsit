@@ -14,7 +14,7 @@ pub struct Repl<R, W> {
 
 impl<R: BufRead, W: Write> Context for Repl<R, W> {
     type Handled  = String;
-    type Rendered = ();
+    type Rendered = [u16;2];
     fn render (&mut self, engine: &impl Output<Self, Self::Rendered>) -> Result<()> {
         engine.render(self)?;
         self.output.flush()?;

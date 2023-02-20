@@ -54,9 +54,13 @@ impl<X, A> MainLoop<A> for X where
     }
 }
 
-pub trait Widget<A, B, C>: Input<A, B> + Output<A, C> {}
+pub trait Widget<A>: Input<A, A::Handled> + Output<A, A::Rendered> where
+    A: Context
+{}
 
-impl<X, A, B, C> Widget<A, B, C> for X where X: Input<A, B> + Output<A, C> {}
+impl<X, A: Context> Widget<A> for X where
+    X: Input<A, A::Handled> + Output<A, A::Rendered>
+{}
 
 #[cfg(test)]
 mod test {

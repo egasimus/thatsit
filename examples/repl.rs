@@ -8,9 +8,9 @@ pub struct ExampleComponent {
     state: String
 }
 
-impl Input<String, String> for ExampleComponent {
-    fn handle (&mut self, input: &mut String) -> Result<Option<String>> {
-        self.state = input.clone();
+impl<R: BufRead, W> Input<Repl<R, W>, String> for ExampleComponent {
+    fn handle (&mut self, context: &mut Repl<R, W>) -> Result<Option<String>> {
+        self.state = context.read();
         Ok(None)
     }
 }
