@@ -5,22 +5,6 @@
 use crate::*;
 use std::io::{Stdout, Write, BufRead};
 
-impl<'a, R: BufRead, W: Write, X> MainLoop<Repl<R, W>> for X
-where
-    X: Input<Repl<R, W>, String> + Output<Repl<R, W>, [u16;2]>
-{
-    fn run (mut self, mut context: Repl<R, W>) -> Result<Repl<R, W>> {
-        loop {
-            context.render(&self)?;
-            context.handle(&mut self)?;
-            if context.exited() {
-                break
-            }
-        }
-        Ok(context)
-    }
-}
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct Repl<R, W> {
     input:  R,
@@ -28,8 +12,19 @@ pub struct Repl<R, W> {
     pub exited: bool
 }
 
-impl<R, W> Repl<R, W> {
-    pub fn exited (&self) -> bool {
+impl<R: BufRead, W: Write> Context for Repl<R, W> {
+    type Handled  = String;
+    type Rendered = ();
+    fn render (&mut self, engine: &impl Output<Self, Self::Rendered>) -> Result<()> {
+        engine.render(self)?;
+        self.output.flush()?;
+        Ok(())
+    }
+    fn handle (&mut self, _: &mut impl Input<Self, Self::Handled>) -> Result<()> {
+        self.read_line()?;
+        Ok(())
+    }
+    fn exited (&self) -> bool {
         self.exited
     }
 }
@@ -39,17 +34,9 @@ impl<R, W: Write> Repl<R, W> {
         self.output.write_all(data)?;
         Ok(())
     }
-    fn render (&mut self, engine: &impl Output<Self, [u16;2]>) -> Result<()> {
-        engine.render(self)?;
-        self.output.flush()?;
-        Ok(())
-    }
 }
 
 impl<R: BufRead, W> Repl<R, W> {
-    fn handle (&mut self, _: &mut impl Output<Self, [u16;2]>) -> Result<String> {
-        Ok(self.read_line()?)
-    }
     fn read_line (&mut self) -> Result<String> {
         let mut input = String::new();
         self.input.read_line(&mut input)?;

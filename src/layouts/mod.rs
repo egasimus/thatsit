@@ -9,8 +9,10 @@ mod max; pub use max::*;
 mod min; pub use min::*;
 mod offset; pub use offset::*;
 mod rows; pub use rows::*;
+mod style; pub use style::*;
 mod text; pub use text::*;
 mod tabs; pub use tabs::*;
+mod toggle; pub use toggle::*;
 
 use std::{fmt::{Debug}};
 

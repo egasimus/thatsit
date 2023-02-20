@@ -3,7 +3,7 @@
 use crate::*;
 use super::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum TabSide {
     Top,
     Right,
@@ -67,20 +67,22 @@ impl<T> Tabbed<T> {
         let page  = self.focus.and_then(|focus|self.pages.get(focus)).map(|page|&page.1);
         let space = if page.is_some() { 1u16 } else { 0u16 };
         match self.side {
-            None => match page {
-                Some(page) => Collected::Ref(page),
-                None       => Collected::None
+            Some(TabSide::Left) => {
+                return Columns::new().add(self.tabs()).add(space).add(page).into_collected()
             },
-            Some(side) => Collected::Box(match side {
-                TabSide::Left   => Box::new(Columns::new()
-                    .add(self.tabs()).add(space).add(page)) as Box<dyn Output<U, V>>,
-                TabSide::Top    => Box::new(Rows::new()
-                    .add(self.tabs()).add(space).add(page)) as Box<dyn Output<U, V>>,
-                TabSide::Right  => Box::new(Columns::new()
-                    .add(page).add(space).add(self.tabs())) as Box<dyn Output<U, V>>,
-                TabSide::Bottom => Box::new(Rows::new()
-                    .add(page).add(space).add(self.tabs())) as Box<dyn Output<U, V>>
-            })
+            Some(TabSide::Top) => {
+                return Rows::new().add(self.tabs()).add(space).add(page).into_collected()
+            },
+            Some(TabSide::Right) => {
+                return Columns::new().add(page).add(space).add(self.tabs()).into_collected()
+            },
+            Some(TabSide::Bottom) => {
+                return Rows::new().add(page).add(space).add(self.tabs()).into_collected()
+            },
+            None => match page {
+                Some(page) => return Collected::Ref(page),
+                None       => return Collected::None
+            }
         }
     }
 

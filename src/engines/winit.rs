@@ -39,23 +39,6 @@ use winit::{
 
 pub type Unit = f32;
 
-impl<'a, X> MainLoop<Winit> for X
-where
-    X: Input<Winit, bool> + Output<Winit, Vec<[f32;4]>>
-{
-    fn run (mut self, mut context: Winit) -> Result<Winit> {
-        context.setup();
-        loop {
-            context.render(&self)?;     // Render display
-            context.handle(&mut self)?; // Respond to user input
-            if context.exited() {       // Repeat until done
-                break
-            }
-        }
-        Ok(context)
-    }
-}
-
 pub struct Winit {
     logger:        slog::Logger,
     _log_guard:    slog_scope::GlobalLoggerGuard,
@@ -70,66 +53,14 @@ pub struct Winit {
     event:         Option<WinitEvent>
 }
 
-impl Winit {
+impl Context for Winit {
 
-    pub fn new () -> Result<Self> {
-        Self::init(EventLoop::new())
-    }
+    type Handled  = bool;
+    type Rendered = Vec<[f32; 4]>;
 
-    pub fn harness () -> Result<Self> {
-        Self::init(EventLoopBuilder::new().with_any_thread(true).build())
-    }
-
-    /// Initialize winit engine
-    fn init (events: EventLoop<()>) -> Result<Self> {
-
-        // Create the logger
-        let fused = slog_async::Async::default(slog_term::term_full().fuse()).fuse();
-        let logger = slog::Logger::root(fused, slog::o!(),);
-        let log_guard = slog_scope::set_global_logger(logger.clone());
-        slog_stdlog::init().expect("Could not setup log backend");
-        debug!(&logger, "Logger initialized");
-        debug!(&logger, "Starting Winit engine");
-
-        // Create a null window to host the EGLDisplay
-        let window = std::sync::Arc::new(WindowBuilder::new()
-            .with_inner_size(LogicalSize::new(16, 16))
-            .with_title("Charlie Null")
-            .with_visible(false)
-            .build(&events)?);
-
-        // Create the EGL context and renderer
-        let egl_display = EGLDisplay::new(window, logger.clone()).unwrap();
-        let egl_context = EGLContext::new_with_config(&egl_display, GlAttributes {
-            version: (3, 0), profile: None, vsync: true, debug: cfg!(debug_assertions),
-        }, Default::default(), logger.clone())?;
-        let renderer = make_renderer(&logger, &egl_context)?;
-
-        Ok(Self {
-            logger: logger.clone(),
-            _log_guard: log_guard,
-            renderer: Rc::new(RefCell::new(renderer)),
-            events:   Rc::new(RefCell::new(events)),
-            windows:  Rc::new(RefCell::new(HashMap::new())),
-            running:  Arc::new(AtomicBool::new(true)),
-            started:  Cell::new(None),
-            egl_display,
-            egl_context,
-            event: None
-        })
-
-    }
-
-    fn setup (&mut self) {
+    fn setup (&mut self) -> Result<()> {
         self.started.set(Some(Instant::now()));
-    }
-
-    pub fn exit (&self) {
-        self.running.store(false, Ordering::Relaxed)
-    }
-
-    pub fn exited (&self) -> bool {
-        !self.running.fetch_and(true, Ordering::Relaxed)
+        Ok(())
     }
 
     /// For each host window, render the corresponding view of the app
@@ -185,6 +116,66 @@ impl Winit {
         } else {
             Ok(())
         }
+    }
+
+    fn exited (&self) -> bool {
+        !self.running.fetch_and(true, Ordering::Relaxed)
+    }
+
+}
+
+impl Winit {
+
+    pub fn new () -> Result<Self> {
+        Self::init(EventLoop::new())
+    }
+
+    pub fn harness () -> Result<Self> {
+        Self::init(EventLoopBuilder::new().with_any_thread(true).build())
+    }
+
+    /// Initialize winit engine
+    fn init (events: EventLoop<()>) -> Result<Self> {
+
+        // Create the logger
+        let fused = slog_async::Async::default(slog_term::term_full().fuse()).fuse();
+        let logger = slog::Logger::root(fused, slog::o!(),);
+        let log_guard = slog_scope::set_global_logger(logger.clone());
+        slog_stdlog::init().expect("Could not setup log backend");
+        debug!(&logger, "Logger initialized");
+        debug!(&logger, "Starting Winit engine");
+
+        // Create a null window to host the EGLDisplay
+        let window = std::sync::Arc::new(WindowBuilder::new()
+            .with_inner_size(LogicalSize::new(16, 16))
+            .with_title("Charlie Null")
+            .with_visible(false)
+            .build(&events)?);
+
+        // Create the EGL context and renderer
+        let egl_display = EGLDisplay::new(window, logger.clone()).unwrap();
+        let egl_context = EGLContext::new_with_config(&egl_display, GlAttributes {
+            version: (3, 0), profile: None, vsync: true, debug: cfg!(debug_assertions),
+        }, Default::default(), logger.clone())?;
+        let renderer = make_renderer(&logger, &egl_context)?;
+
+        Ok(Self {
+            logger: logger.clone(),
+            _log_guard: log_guard,
+            renderer: Rc::new(RefCell::new(renderer)),
+            events:   Rc::new(RefCell::new(events)),
+            windows:  Rc::new(RefCell::new(HashMap::new())),
+            running:  Arc::new(AtomicBool::new(true)),
+            started:  Cell::new(None),
+            egl_display,
+            egl_context,
+            event: None
+        })
+
+    }
+
+    pub fn exit (&self) {
+        self.running.store(false, Ordering::Relaxed)
     }
 
     fn renderer (&self) -> RefMut<smithay::backend::renderer::gles2::Gles2Renderer> {

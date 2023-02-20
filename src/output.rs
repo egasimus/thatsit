@@ -99,7 +99,7 @@ impl<'a, T, U> Collector<'a, T, U> {
         items
     }
     /// Add an item to this collector
-    fn add (&mut self, widget: Collected<'a, T, U>) -> &mut Self {
+    fn add (mut self, widget: Collected<'a, T, U>) -> Self {
         self.0.push(widget);
         self
     }
@@ -111,14 +111,7 @@ pub struct Collector<'a, T, U>(pub Vec<Collected<'a, T, U>>);
 /// Calling the collector with an item adds it to the collection.
 impl<'a, T, U, V: Output<T, U> + 'a> FnOnce<(V, )> for Collector<'a, T, U> {
     type Output = ();
-    extern "rust-call" fn call_once (mut self, args: (V,)) -> Self::Output {
-        self.call_mut(args)
-    }
-}
-
-/// Calling the collector with an item adds it to the collection.
-impl<'a, T, U, V: Output<T, U> + 'a> FnMut<(V, )> for Collector<'a, T, U> {
-    extern "rust-call" fn call_mut (&mut self, (widget,): (V,)) -> Self::Output {
+    extern "rust-call" fn call_once (self, (widget, ): (V,)) -> Self::Output {
         self.add(widget.into_collected());
     }
 }

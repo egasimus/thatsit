@@ -46,20 +46,6 @@ use std::io::Write;
 use std::thread::spawn;
 use std::time::Duration;
 
-impl<W: Write, X: Input<TUI<W>, bool> + Output<TUI<W>, [u16;2]>> MainLoop<TUI<W>> for X {
-    fn run (mut self, mut context: TUI<W>) -> Result<TUI<W>> {
-        context.setup()?;
-        loop {
-            context.render(&self)?;     // Render display
-            context.handle(&mut self)?; // Respond to user input
-            if context.exited() {       // Repeat until done
-                break
-            }
-        }
-        Ok(context)
-    }
-}
-
 /// An instance of an app hosted by crossterm.
 #[derive(Debug)]
 pub struct TUI<W: Write> {
@@ -75,27 +61,19 @@ pub struct TUI<W: Write> {
     pub area: [u16; 4]
 }
 
-impl<W: Write> TUI<W> {
+impl<W: Write> Context for TUI<W> {
+    type Handled  = bool;
+    type Rendered = [u16;2];
 
     fn setup (&mut self) -> Result<()> {
         self.output.execute(EnterAlternateScreen)?.execute(Hide)?;
         Ok(())
     }
 
-    pub fn cleanup (&mut self) -> Result<()> {
-        self.output.execute(ResetColor)?.execute(Show)?.execute(LeaveAlternateScreen)?;
-        disable_raw_mode()?;
+    fn handle (&mut self, widget: &mut impl Input<Self, bool>) -> Result<()> {
+        self.event = Some(self.input.recv()?);
+        widget.handle(self)?;
         Ok(())
-    }
-
-    pub fn exit (&mut self) -> Result<()> {
-        self.exited.store(true, Ordering::Relaxed);
-        self.cleanup()?;
-        Ok(())
-    }
-
-    fn exited (&self) -> bool {
-        self.exited.fetch_and(true, Ordering::Relaxed)
     }
 
     fn render (&mut self, widget: &impl Output<Self, [u16;2]>) -> Result<()> {
@@ -110,9 +88,22 @@ impl<W: Write> TUI<W> {
         Ok(())
     }
 
-    fn handle (&mut self, widget: &mut impl Input<Self, bool>) -> Result<()> {
-        self.event = Some(self.input.recv()?);
-        widget.handle(self)?;
+    fn exited (&self) -> bool {
+        self.exited.fetch_and(true, Ordering::Relaxed)
+    }
+}
+
+impl<W: Write> TUI<W> {
+
+    pub fn cleanup (&mut self) -> Result<()> {
+        self.output.execute(ResetColor)?.execute(Show)?.execute(LeaveAlternateScreen)?;
+        disable_raw_mode()?;
+        Ok(())
+    }
+
+    pub fn exit (&mut self) -> Result<()> {
+        self.exited.store(true, Ordering::Relaxed);
+        self.cleanup()?;
         Ok(())
     }
 
