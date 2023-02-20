@@ -13,13 +13,42 @@ pub enum TabSide {
 
 #[derive(Debug)]
 pub struct Tabbed<T> {
+    /// On which side to render the tabs
     pub side:  Option<TabSide>,
-    pub focus: Option<usize>,
+    /// List of named tabs
     pub pages: Vec<(String, T)>,
-    pub range: (usize, usize)
+    /// The currently focused tab
+    pub focus: Option<usize>,
+    /// For scrolling
+    pub range: Option<(usize, usize)>
 }
 
 impl<T> Tabbed<T> {
+
+    pub fn new (side: Option<TabSide>, pages: Vec<(String, T)>) -> Self {
+        Self {
+            side,
+            pages,
+            focus: None,
+            range: None
+        }
+    }
+
+    pub fn left (pages: Vec<(String, T)>) -> Self {
+        Self::new(Some(TabSide::Left), pages)
+    }
+
+    pub fn right (pages: Vec<(String, T)>) -> Self {
+        Self::new(Some(TabSide::Right), pages)
+    }
+
+    pub fn top (pages: Vec<(String, T)>) -> Self {
+        Self::new(Some(TabSide::Top), pages)
+    }
+
+    pub fn bottom (pages: Vec<(String, T)>) -> Self {
+        Self::new(Some(TabSide::Bottom), pages)
+    }
 
     /// Create a container holding the tab container and the active tab
     pub fn layout <'a, U, V> (&'a self) -> Collected<'a, U, V> where
@@ -78,7 +107,7 @@ impl<T> Tabbed<T> {
         &'a self, mut container: W
     ) -> W where String: Output<U, V> {
         let selected = self.focus;
-        let (skip, size) = self.range;
+        let (skip, size) = self.range.unwrap_or((0, usize::MAX));
         for (index, (label, _)) in self.pages.iter().enumerate().skip(skip) {
             let label = label.clone();
             let focused = Some(index) == self.focus;
