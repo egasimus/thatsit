@@ -2,6 +2,7 @@
 
 mod align; pub use align::*;
 mod columns; pub use columns::*;
+mod files; pub use files::*;
 mod fixed; pub use fixed::*;
 mod focus; pub use focus::*;
 mod layers; pub use layers::*;
